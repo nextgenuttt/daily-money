@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_green">#1E4D3B</color>
+    <color name="background_light">#F5F7F6</color>
+    <color name="background_dark">#0C0F0E</color>
+
+    <style name="Theme.DailyMoney" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/background_light</item>
+    </style>
+
+    <style name="Theme.DailyMoney.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/brand_green</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.DailyMoney</item>
+    </style>
+</resources>

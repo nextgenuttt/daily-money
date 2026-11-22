@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_app_tagline">Money, bills and plans in one app</string>
+    <string name="auth_continue_google">Continue with Google</string>
+    <string name="auth_sign_in_email">Sign in with email</string>
+    <string name="auth_create_account">Create account</string>
+    <string name="auth_new_here">New here? Create an account</string>
+    <string name="auth_or">or</string>
+    <string name="auth_back">Back</string>
+
+    <string name="auth_sign_in_title">Sign in</string>
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_show_password">Show password</string>
+    <string name="auth_hide_password">Hide password</string>
+    <string name="auth_forgot_password">Forgot password?</string>
+    <string name="auth_sign_in_button">Sign in</string>
+    <string name="auth_no_account">No account? Create one</string>
+
+    <string name="auth_sign_up_title">Create account</string>
+    <string name="auth_full_name">Full name</string>
+    <string name="auth_confirm_password">Confirm password</string>
+    <string name="auth_terms">I agree to the Terms and Privacy Policy</string>
+    <string name="auth_have_account">Already have an account? Sign in</string>
+    <string name="auth_strength_weak">Weak password</string>
+    <string name="auth_strength_medium">Medium password</string>
+    <string name="auth_strength_strong">Strong password</string>
+
+    <string name="auth_verify_title">Verify your email</string>
+    <string name="auth_verify_body">We sent a link to %1$s. Open it to finish creating your account.</string>
+    <string name="auth_verify_open_mail">Open mail app</string>
+    <string name="auth_verify_done">I\'ve verified</string>
+    <string name="auth_verify_resend">Resend email</string>
+    <string name="auth_verify_resend_in">Resend in %1$d s</string>
+    <string name="auth_verify_sent">Verification email sent</string>
+    <string name="auth_verify_not_yet">Not verified yet. Open the link in the email, then try again.</string>
+    <string name="auth_wrong_account">Wrong account? Sign out</string>
+
+    <string name="auth_forgot_title">Reset password</string>
+    <string name="auth_forgot_body">Enter your account email and we\'ll send you a link to set a new password.</string>
+    <string name="auth_forgot_send">Send reset link</string>
+    <string name="auth_forgot_sent">If an account exists for %1$s, we\'ve sent a reset link. Check your inbox.</string>
+    <string name="auth_back_to_sign_in">Back to sign in</string>
+
+    <string name="auth_reset_title">Set a new password</string>
+    <string name="auth_reset_for">For %1$s</string>
+    <string name="auth_new_password">New password</string>
+    <string name="auth_reset_save">Save password</string>
+    <string name="auth_reset_checking">Checking your link…</string>
+
+    <string name="auth_err_required">This field is required</string>
+    <string name="auth_err_invalid_email">Enter a valid email address</string>
+    <string name="auth_err_passwords_different">Passwords don\'t match</string>
+    <string name="auth_err_name_long">Name must be 60 characters or fewer</string>
+    <string name="auth_err_terms">Please accept the Terms and Privacy Policy</string>
+    <string name="auth_rule_min">at least 8 characters</string>
+    <string name="auth_rule_max">at most 64 characters</string>
+    <string name="auth_rule_letter">a letter</string>
+    <string name="auth_rule_digit">a number</string>
+    <string name="auth_rule_not_email">different from your email</string>
+    <string name="auth_err_password_needs">Password needs %1$s</string>
+
+    <string name="auth_err_invalid_credentials">Incorrect email or password. Signed up with Google? Use Continue with Google.</string>
+    <string name="auth_err_email_in_use">An account with this email already exists. Sign in instead.</string>
+    <string name="auth_err_too_many">Too many attempts. Try again in a few minutes.</string>
+    <string name="auth_err_disabled">This account is disabled. Contact support.</string>
+    <string name="auth_err_link_expired">This link has expired or was already used. Send a new one.</string>
+    <string name="auth_err_recent_login">Please sign in again to continue.</string>
+    <string name="auth_err_network">No internet connection. Check your connection and try again.</string>
+    <string name="auth_err_no_google">No Google account on this device. Add one in Settings, then try again.</string>
+    <string name="auth_err_google_not_configured">Google sign-in isn\'t set up in this build yet.</string>
+    <string name="auth_err_unknown">Something went wrong. Please try again.</string>
+</resources>

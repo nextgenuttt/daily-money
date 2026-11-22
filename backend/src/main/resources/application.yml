@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: dailymoney-backend
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${SUPABASE_DB_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${SUPABASE_DB_USER:postgres}
+    password: ${SUPABASE_DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: app
+        jdbc:
+          time_zone: UTC
+  flyway:
+    schemas: app
+    default-schema: app
+    create-schemas: true
+  mvc:
+    problemdetails:
+      enabled: true
+
+app:
+  firebase:
+    project-id: ${FIREBASE_PROJECT_ID:set-firebase-project-id}
+    service-account-file: ${FIREBASE_SERVICE_ACCOUNT_FILE:}
+  supabase:
+    url: ${SUPABASE_URL:}
+    service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs

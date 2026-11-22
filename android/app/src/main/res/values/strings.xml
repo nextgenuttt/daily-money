@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Daily Money</string>
+    <string name="config_missing_title">Firebase isn\'t set up yet</string>
+    <string name="config_missing_body">Add google-services.json from the Firebase console to android/app/ and rebuild the app.</string>
+    <string name="link_email_verified">Email verified</string>
+    <string name="link_failed">This link has expired or was already used.</string>
+</resources>

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Daily Money</title>
+  <link rel="stylesheet" href="/auth/style.css">
+</head>
+<body>
+  <!--
+    Firebase custom email action handler (doc 04 §4.4–4.5).
+    On a phone with the app installed, Android opens this URL in the app instead (App Link).
+    Otherwise this page completes the action in the browser.
+  -->
+  <main class="card">
+    <h1 id="title">One moment…</h1>
+    <p id="message">Checking your link.</p>
+
+    <form id="reset-form" class="hidden" novalidate>
+      <label for="password">New password</label>
+      <input id="password" type="password" autocomplete="new-password" minlength="8" maxlength="64" required>
+      <label for="confirm">Confirm password</label>
+      <input id="confirm" type="password" autocomplete="new-password" required>
+      <p id="form-error" class="error" role="alert"></p>
+      <button id="save" type="submit">Save password</button>
+    </form>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import {
+      getAuth, applyActionCode, checkActionCode, verifyPasswordResetCode, confirmPasswordReset,
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+    const params = new URLSearchParams(location.search);
+    const mode = params.get("mode");
+    const oobCode = params.get("oobCode");
+    // Firebase puts the project's (public) web API key in every action link.
+    const apiKey = params.get("apiKey");
+
+    const title = document.getElementById("title");
+    const message = document.getElementById("message");
+    const show = (t, m) => { title.textContent = t; message.textContent = m; };
+    const expired = () => show("Link expired", "This link has expired or was already used. Request a new one from the app.");
+
+    if (!mode || !oobCode || !apiKey) {
+      show("Invalid link", "This link is incomplete. Open it straight from the email.");
+    } else {
+      const auth = getAuth(initializeApp({ apiKey }));
+      if (mode === "verifyEmail") verifyEmail(auth);
+      else if (mode === "resetPassword") resetPassword(auth);
+      else if (mode === "recoverEmail") recoverEmail(auth);
+      else show("Invalid link", "This link type isn't supported.");
+    }
+
+    async function verifyEmail(auth) {
+      try {
+        await applyActionCode(auth, oobCode);
+        show("Email verified", "Go back to the Daily Money app. It will continue on its own.");
+      } catch { expired(); }
+    }
+
+    async function recoverEmail(auth) {
+      try {
+        const info = await checkActionCode(auth, oobCode);
+        await applyActionCode(auth, oobCode);
+        show("Email restored", `Your sign-in email is back to ${info.data.email}. If you didn't change it, reset your password now.`);
+      } catch { expired(); }
+    }
+
+    async function resetPassword(auth) {
+      let email;
+      try {
+        email = await verifyPasswordResetCode(auth, oobCode);
+      } catch { expired(); return; }
+      show("Set a new password", `For ${email}`);
+      const form = document.getElementById("reset-form");
+      const error = document.getElementById("form-error");
+      const save = document.getElementById("save");
+      form.classList.remove("hidden");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const password = document.getElementById("password").value;
+        const confirm = document.getElementById("confirm").value;
+        error.textContent = "";
+        if (password.length < 8 || password.length > 64 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+          error.textContent = "Use 8–64 characters with at least one letter and one number.";
+          return;
+        }
+        if (password.toLowerCase() === email.toLowerCase()) {
+          error.textContent = "Your password must be different from your email.";
+          return;
+        }
+        if (password !== confirm) {
+          error.textContent = "Passwords don't match.";
+          return;
+        }
+        save.disabled = true;
+        try {
+          await confirmPasswordReset(auth, oobCode, password);
+          form.classList.add("hidden");
+          show("Password saved", "Sign in to the Daily Money app with your new password.");
+        } catch (err) {
+          save.disabled = false;
+          error.textContent = err?.code === "auth/weak-password"
+            ? "That password is too weak. Try a longer one."
+            : "Couldn't save the password. The link may have expired.";
+        }
+      });
+    }
+  </script>
+</body>
+</html>

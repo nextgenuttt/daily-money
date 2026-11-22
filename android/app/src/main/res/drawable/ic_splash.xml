@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wallet mark on the splash screen (108dp canvas, icon in the safe 72dp centre). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,38h36a6,6 0,0 1,6 6v20a6,6 0,0 1,-6 6H36a6,6 0,0 1,-6 -6V44a6,6 0,0 1,6 -6z" />
+    <path
+        android:fillColor="#1E4D3B"
+        android:pathData="M60,50h18v8H60a4,4 0,0 1,0 -8z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M62,54m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" />
+</vector>

@@ -1,0 +1,27 @@
+# OS / IDE
+.DS_Store
+.idea/
+*.iml
+.vscode/
+
+# Gradle / build
+.gradle/
+build/
+.kotlin/
+captures/
+*.apk
+*.aab
+
+# Secrets — never commit
+local.properties
+google-services.json
+*.keystore
+*.jks
+.env
+.env.*
+firebase-service-account*.json
+backend/src/main/resources/application-local.yml
+
+# Firebase
+firebase/hosting/.firebase/
+firebase-debug.log
