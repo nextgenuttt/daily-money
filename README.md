@@ -12,6 +12,20 @@ Personal finance, reminders and family expense app.
 Login is **Firebase Auth** (email + password, Google). **Supabase** is used only for the
 Postgres database and file storage, and only the backend talks to it.
 
+## Progress
+
+| Phase | Status |
+|---|---|
+| 1. Foundation + login (email/password, Google, logout) | Done |
+| 2a. Personal money: accounts, categories, income/expense/transfer, search, budgets, reports, Home dashboard | Done |
+| 2b. Recurring transactions, subscriptions, savings goals, debts & lending, receipts, CSV/PDF export | Done |
+| 3. Reminders, events, calendar, notifications (incl. budget alerts and subscription renewals) | Done |
+| 4. To-Do: tasks, subtasks, checklists, repeating tasks, task reminders, quick add | Done |
+| 5. Organizations (R2 starts: backend sync, groups, invitations, roles) | Next |
+
+Personal money data is stored only on the phone (encrypted Room database) until the R2 sync
+arrives; signing out deletes it.
+
 ## Configuration (fill in when you have the details)
 
 ### Android — `android/local.properties` (not committed)

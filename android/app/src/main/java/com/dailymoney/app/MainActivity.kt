@@ -31,7 +31,6 @@ import com.dailymoney.core.domain.auth.SessionState
 import com.dailymoney.feature.auth.navigation.AuthFlow
 import com.dailymoney.feature.auth.reset.ResetPasswordScreen
 import com.dailymoney.feature.auth.verify.VerifyEmailScreen
-import com.dailymoney.feature.home.navigation.MainFlow
 import com.google.firebase.FirebaseApp
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -51,13 +50,19 @@ class MainActivity : ComponentActivity() {
         }
 
         splash.setKeepOnScreenCondition { viewModel.session.value == SessionState.Loading }
-        if (savedInstanceState == null) viewModel.handleLink(intent?.data)
+        if (savedInstanceState == null) {
+            viewModel.handleLink(intent?.data)
+            viewModel.handleOpen(intent?.extras)
+        }
         setContent { DailyMoneyTheme { AppRoot(viewModel) } }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (FirebaseApp.getApps(this).isNotEmpty()) viewModel.handleLink(intent.data)
+        if (FirebaseApp.getApps(this).isNotEmpty()) {
+            viewModel.handleLink(intent.data)
+            viewModel.handleOpen(intent.extras)
+        }
     }
 }
 
@@ -67,6 +72,7 @@ private fun AppRoot(viewModel: AppViewModel) {
     val session by viewModel.session.collectAsStateWithLifecycle()
     val resetCode by viewModel.pendingResetCode.collectAsStateWithLifecycle()
     val linkMessage by viewModel.linkMessage.collectAsStateWithLifecycle()
+    val openRequest by viewModel.openRequest.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
 
     val verifiedText = stringResource(R.string.link_email_verified)
@@ -85,7 +91,7 @@ private fun AppRoot(viewModel: AppViewModel) {
                 SessionState.Loading -> Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {}
                 SessionState.SignedOut -> AuthFlow()
                 is SessionState.NeedsVerification -> VerifyEmailScreen(email = s.email)
-                is SessionState.SignedIn -> MainFlow(user = s.user)
+                is SessionState.SignedIn -> MainShell(user = s.user, openRequest = openRequest, onOpenHandled = viewModel::openHandled)
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(Spacing.md))

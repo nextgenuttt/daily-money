@@ -19,4 +19,5 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.exifinterface)
 }

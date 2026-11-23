@@ -1,0 +1,68 @@
+package com.dailymoney.feature.money.navigation
+
+import androidx.navigation.NavController
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.compose.composable
+import com.dailymoney.feature.money.accounts.AccountsScreen
+import com.dailymoney.feature.money.budgets.BudgetsScreen
+import com.dailymoney.feature.money.categories.CategoriesScreen
+import com.dailymoney.feature.money.edit.AddEditTransactionScreen
+import com.dailymoney.feature.money.planning.DebtDetailScreen
+import com.dailymoney.feature.money.planning.DebtsScreen
+import com.dailymoney.feature.money.planning.ExportScreen
+import com.dailymoney.feature.money.planning.GoalDetailScreen
+import com.dailymoney.feature.money.planning.GoalsScreen
+import com.dailymoney.feature.money.planning.RecurringScreen
+import com.dailymoney.feature.money.planning.SubscriptionsScreen
+import com.dailymoney.feature.money.transactions.MoneyMenuItem
+import com.dailymoney.feature.money.transactions.TransactionsScreen
+import kotlinx.serialization.Serializable
+
+@Serializable data object TransactionsRoute
+/** [type] pre-selects EXPENSE / INCOME / TRANSFER for a new transaction (quick add). */
+@Serializable data class AddEditTransactionRoute(val transactionId: String? = null, val type: String? = null)
+@Serializable data object AccountsRoute
+@Serializable data object CategoriesRoute
+@Serializable data object BudgetsRoute
+@Serializable data object RecurringRoute
+@Serializable data object SubscriptionsRoute
+@Serializable data object GoalsRoute
+@Serializable data class GoalDetailRoute(val goalId: String)
+@Serializable data object DebtsRoute
+@Serializable data class DebtDetailRoute(val debtId: String)
+@Serializable data object ExportRoute
+
+/** Money screens. Top-level destinations (Transactions, Budgets) are shown in the app's bottom bar. */
+fun NavGraphBuilder.moneyGraph(navController: NavController) {
+    val back: () -> Unit = { navController.popBackStack() }
+    composable<TransactionsRoute> {
+        TransactionsScreen(
+            onAdd = { navController.navigate(AddEditTransactionRoute()) },
+            onOpen = { id -> navController.navigate(AddEditTransactionRoute(id)) },
+            onAccounts = { navController.navigate(AccountsRoute) },
+            onMenu = { item ->
+                navController.navigate(
+                    when (item) {
+                        MoneyMenuItem.CATEGORIES -> CategoriesRoute
+                        MoneyMenuItem.RECURRING -> RecurringRoute
+                        MoneyMenuItem.SUBSCRIPTIONS -> SubscriptionsRoute
+                        MoneyMenuItem.GOALS -> GoalsRoute
+                        MoneyMenuItem.DEBTS -> DebtsRoute
+                        MoneyMenuItem.EXPORT -> ExportRoute
+                    },
+                )
+            },
+        )
+    }
+    composable<AddEditTransactionRoute> { AddEditTransactionScreen(onClose = back) }
+    composable<AccountsRoute> { AccountsScreen(onBack = back) }
+    composable<CategoriesRoute> { CategoriesScreen(onBack = back) }
+    composable<BudgetsRoute> { BudgetsScreen() }
+    composable<RecurringRoute> { RecurringScreen(onBack = back, onAdd = { navController.navigate(AddEditTransactionRoute()) }) }
+    composable<SubscriptionsRoute> { SubscriptionsScreen(onBack = back) }
+    composable<GoalsRoute> { GoalsScreen(onBack = back, onOpen = { navController.navigate(GoalDetailRoute(it)) }) }
+    composable<GoalDetailRoute> { GoalDetailScreen(onBack = back) }
+    composable<DebtsRoute> { DebtsScreen(onBack = back, onOpen = { navController.navigate(DebtDetailRoute(it)) }) }
+    composable<DebtDetailRoute> { DebtDetailScreen(onBack = back) }
+    composable<ExportRoute> { ExportScreen(onBack = back) }
+}

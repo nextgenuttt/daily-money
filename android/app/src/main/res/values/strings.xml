@@ -5,4 +5,9 @@
     <string name="config_missing_body">Add google-services.json from the Firebase console to android/app/ and rebuild the app.</string>
     <string name="link_email_verified">Email verified</string>
     <string name="link_failed">This link has expired or was already used.</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_money">Money</string>
+    <string name="nav_planner">Planner</string>
+    <string name="nav_budgets">Budgets</string>
+    <string name="nav_reports">Reports</string>
 </resources>

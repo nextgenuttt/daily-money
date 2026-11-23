@@ -2,6 +2,37 @@ package com.dailymoney.core.data.di
 
 import com.dailymoney.core.data.auth.FirebaseAuthRepository
 import com.dailymoney.core.data.auth.FirebaseTokenProvider
+import com.dailymoney.core.data.money.RoomAccountRepository
+import com.dailymoney.core.data.money.RoomBudgetRepository
+import com.dailymoney.core.data.money.RoomCategoryRepository
+import com.dailymoney.core.data.money.RoomTransactionRepository
+import com.dailymoney.core.domain.money.AccountRepository
+import com.dailymoney.core.domain.money.BudgetRepository
+import com.dailymoney.core.domain.money.CategoryRepository
+import com.dailymoney.core.domain.money.TransactionRepository
+import java.time.Clock
+import com.dailymoney.core.data.todo.RoomTodoRepository
+import com.dailymoney.core.domain.todo.TodoRepository
+import com.dailymoney.core.data.reminders.AndroidNotifier
+import com.dailymoney.core.data.reminders.AndroidReminderScheduler
+import com.dailymoney.core.data.reminders.RoomBudgetAlertStore
+import com.dailymoney.core.data.reminders.RoomReminderRepository
+import com.dailymoney.core.domain.reminders.BudgetAlertStore
+import com.dailymoney.core.domain.reminders.Notifier
+import com.dailymoney.core.domain.reminders.ReminderRepository
+import com.dailymoney.core.domain.reminders.ReminderScheduler
+import com.dailymoney.core.data.planning.AttachmentStore
+import com.dailymoney.core.data.planning.ExportWriter
+import com.dailymoney.core.data.planning.RoomDebtRepository
+import com.dailymoney.core.data.planning.RoomGoalRepository
+import com.dailymoney.core.data.planning.RoomRecurringRepository
+import com.dailymoney.core.data.planning.WorkManagerJobs
+import com.dailymoney.core.domain.money.AttachmentRepository
+import com.dailymoney.core.domain.money.BackgroundJobs
+import com.dailymoney.core.domain.money.DebtRepository
+import com.dailymoney.core.domain.money.ExportService
+import com.dailymoney.core.domain.money.GoalRepository
+import com.dailymoney.core.domain.money.RecurringRepository
 import com.dailymoney.core.data.session.BackendSessionImpl
 import com.dailymoney.core.data.session.LocalDataWiperImpl
 import com.dailymoney.core.data.session.PendingChangesRepositoryImpl
@@ -37,9 +68,58 @@ abstract class DataModule {
     @Binds
     abstract fun authTokenProvider(impl: FirebaseTokenProvider): AuthTokenProvider
 
+    @Binds
+    abstract fun accountRepository(impl: RoomAccountRepository): AccountRepository
+
+    @Binds
+    abstract fun categoryRepository(impl: RoomCategoryRepository): CategoryRepository
+
+    @Binds
+    abstract fun transactionRepository(impl: RoomTransactionRepository): TransactionRepository
+
+    @Binds
+    abstract fun budgetRepository(impl: RoomBudgetRepository): BudgetRepository
+
+    @Binds
+    abstract fun recurringRepository(impl: RoomRecurringRepository): RecurringRepository
+
+    @Binds
+    abstract fun goalRepository(impl: RoomGoalRepository): GoalRepository
+
+    @Binds
+    abstract fun debtRepository(impl: RoomDebtRepository): DebtRepository
+
+    @Binds
+    abstract fun attachmentRepository(impl: AttachmentStore): AttachmentRepository
+
+    @Binds
+    abstract fun exportService(impl: ExportWriter): ExportService
+
+    @Binds
+    abstract fun backgroundJobs(impl: WorkManagerJobs): BackgroundJobs
+
+    @Binds
+    abstract fun reminderRepository(impl: RoomReminderRepository): ReminderRepository
+
+    @Binds
+    abstract fun reminderScheduler(impl: AndroidReminderScheduler): ReminderScheduler
+
+    @Binds
+    abstract fun budgetAlertStore(impl: RoomBudgetAlertStore): BudgetAlertStore
+
+    @Binds
+    abstract fun notifier(impl: AndroidNotifier): Notifier
+
+    @Binds
+    abstract fun todoRepository(impl: RoomTodoRepository): TodoRepository
+
     companion object {
         @Provides
         @Singleton
         fun firebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+
+        /** Uses the phone's current time zone, so "this month" follows the user when they travel. */
+        @Provides
+        fun clock(): Clock = Clock.systemDefaultZone()
     }
 }

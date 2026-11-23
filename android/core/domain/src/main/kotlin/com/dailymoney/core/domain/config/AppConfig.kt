@@ -7,6 +7,7 @@ data class AppConfig(
     val googleWebClientId: String,
     val authContinueUrl: String,
     val apiBaseUrl: String,
+    val defaultCurrency: String = "INR",
 ) {
     /** R1 runs without a backend: every server call is skipped when no API URL is configured. */
     val backendEnabled: Boolean get() = apiBaseUrl.isNotBlank()

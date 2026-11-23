@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reports_title">Reports</string>
+    <string name="reports_previous_month">Previous month</string>
+    <string name="reports_next_month">Next month</string>
+    <string name="reports_income">Income</string>
+    <string name="reports_expenses">Expenses</string>
+    <string name="reports_net">Net</string>
+    <string name="reports_daily_average">Daily average spend</string>
+    <string name="reports_spending_by_category">Spending by category</string>
+    <string name="reports_income_by_category">Income by category</string>
+    <string name="reports_trend">Last 6 months</string>
+    <string name="reports_uncategorized">Uncategorised</string>
+    <string name="reports_empty_title">Nothing to report yet</string>
+    <string name="reports_empty_body">Add income and expenses to see where your money goes.</string>
+    <string name="reports_donut_description">Spending by category: %1$s</string>
+    <string name="reports_trend_description">Income and expenses for the last six months</string>
+</resources>

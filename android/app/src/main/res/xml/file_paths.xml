@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only these private folders can be shared, and only through temporary per-file grants. -->
+<paths>
+    <files-path name="attachments" path="attachments/" />
+    <cache-path name="camera" path="camera/" />
+</paths>

@@ -5,6 +5,7 @@ plugins {
 
 android {
     namespace = "com.dailymoney.core.database"
+    testOptions.unitTests.isIncludeAndroidResources = true
     defaultConfig {
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
@@ -19,4 +20,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.sqlcipher.android)
     implementation(libs.androidx.sqlite)
+
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 }

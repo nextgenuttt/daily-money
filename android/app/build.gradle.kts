@@ -57,6 +57,12 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":feature:auth"))
     implementation(project(":feature:home"))
+    implementation(project(":feature:money"))
+    implementation(project(":feature:reports"))
+    implementation(project(":feature:reminders"))
+    implementation(project(":feature:todo"))
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.compose.material.icons.extended)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

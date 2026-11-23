@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notif_app_name">Daily Money</string>
+    <string name="channel_payments">Payments and bills</string>
+    <string name="channel_reminders">Reminders</string>
+    <string name="channel_events">Events and birthdays</string>
+    <string name="channel_budget">Budget alerts</string>
+
+    <string name="notif_public_reminder">You have a reminder</string>
+    <string name="notif_public_payment">A payment is coming up</string>
+    <string name="notif_public_budget">Budget update</string>
+
+    <string name="notif_today">Today</string>
+    <string name="notif_at">At %1$s</string>
+    <string name="notif_step_body">For %1$s on %2$s</string>
+    <string name="notif_renews_tomorrow">%1$s renews tomorrow</string>
+    <string name="notif_renewal_body">%1$s on %2$s</string>
+    <string name="notif_budget_overall">Overall spending</string>
+    <string name="notif_budget_level">%1$d%% of %2$s budget used</string>
+    <string name="notif_budget_over">%1$s budget exceeded</string>
+    <string name="notif_budget_body">%1$s spent of %2$s</string>
+
+    <string name="notif_task_due">Task due · %1$s</string>
+    <string name="action_done">Done</string>
+    <string name="action_complete">Complete</string>
+    <string name="action_mark_paid">Mark paid</string>
+    <string name="action_mark_received">Mark received</string>
+    <string name="action_mark_wished">Mark wished</string>
+    <string name="action_completed">Completed</string>
+    <string name="action_reschedule">Reschedule</string>
+    <string name="action_remind_later">Remind later</string>
+</resources>
