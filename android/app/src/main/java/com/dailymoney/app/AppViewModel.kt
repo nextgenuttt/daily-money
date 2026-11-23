@@ -17,6 +17,7 @@ import com.dailymoney.core.domain.auth.AuthResult
 import com.dailymoney.core.domain.auth.BackendSession
 import com.dailymoney.core.domain.auth.ObserveSessionUseCase
 import com.dailymoney.core.domain.auth.SessionState
+import com.dailymoney.core.domain.groups.InviteLinks
 import com.dailymoney.core.domain.money.BackgroundJobs
 import com.dailymoney.core.domain.money.EnsureDefaultDataUseCase
 import com.dailymoney.core.domain.money.PostDueRecurringUseCase
@@ -37,6 +38,7 @@ sealed interface OpenRequest {
     data object Subscriptions : OpenRequest
     data object Budgets : OpenRequest
     data class Todo(val id: String) : OpenRequest
+    data class Invite(val token: String) : OpenRequest
 }
 
 @OptIn(FlowPreview::class)
@@ -96,7 +98,13 @@ class AppViewModel @Inject constructor(
 
     /** Firebase email action link: https://<host>/auth/action?mode=…&oobCode=… */
     fun handleLink(uri: Uri?) {
-        if (uri?.path?.startsWith("/auth/action") != true) return
+        val path = uri?.path ?: return
+        // Group invitation: https://<host>/invite/<token> (kept until signed in, then opened).
+        if (path.startsWith("/invite/")) {
+            InviteLinks.tokenFrom(uri.toString())?.let { _openRequest.value = OpenRequest.Invite(it) }
+            return
+        }
+        if (!path.startsWith("/auth/action")) return
         val code = uri.getQueryParameter("oobCode") ?: return
         when (uri.getQueryParameter("mode")) {
             "resetPassword" -> _pendingResetCode.value = code

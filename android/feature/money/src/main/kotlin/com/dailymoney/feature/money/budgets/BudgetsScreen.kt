@@ -45,7 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -148,12 +148,13 @@ class BudgetsViewModel @Inject constructor(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun BudgetsScreen(viewModel: BudgetsViewModel = hiltViewModel()) {
+internal fun BudgetsScreen(onBack: () -> Unit, viewModel: BudgetsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.money_budgets)) },
+                navigationIcon = { com.dailymoney.feature.money.common.BackButton(onBack) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },

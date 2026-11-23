@@ -1,6 +1,7 @@
 package com.dailymoney.feature.auth.signup
 
-import android.app.Activity
+import androidx.compose.ui.autofill.ContentType
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.selection.toggleable
@@ -12,14 +13,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailymoney.core.designsystem.component.AppTextField
 import com.dailymoney.core.designsystem.component.ErrorBanner
@@ -41,7 +41,7 @@ internal fun SignUpScreen(
     viewModel: SignUpViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val activity = LocalContext.current as Activity
+    val activity = requireNotNull(LocalActivity.current)
     val focus = LocalFocusManager.current
     val enabled = !state.busy
 
@@ -50,6 +50,7 @@ internal fun SignUpScreen(
             value = state.name,
             onValueChange = viewModel::onNameChange,
             label = stringResource(R.string.auth_full_name),
+            contentType = ContentType.PersonFullName,
             error = state.nameError?.message(),
             capitalization = KeyboardCapitalization.Words,
             enabled = enabled,
@@ -58,6 +59,7 @@ internal fun SignUpScreen(
             value = state.email,
             onValueChange = viewModel::onEmailChange,
             label = stringResource(R.string.auth_email),
+            contentType = ContentType.EmailAddress + ContentType.Username,
             error = state.emailError?.message(),
             keyboardType = KeyboardType.Email,
             enabled = enabled,
@@ -66,6 +68,7 @@ internal fun SignUpScreen(
             value = state.password,
             onValueChange = viewModel::onPasswordChange,
             label = stringResource(R.string.auth_password),
+            contentType = ContentType.NewPassword,
             showLabel = stringResource(R.string.auth_show_password),
             hideLabel = stringResource(R.string.auth_hide_password),
             error = state.passwordRules.takeIf { it.isNotEmpty() }?.let { passwordRulesMessage(it) },
@@ -88,6 +91,7 @@ internal fun SignUpScreen(
             value = state.confirm,
             onValueChange = viewModel::onConfirmChange,
             label = stringResource(R.string.auth_confirm_password),
+            contentType = ContentType.NewPassword,
             showLabel = stringResource(R.string.auth_show_password),
             hideLabel = stringResource(R.string.auth_hide_password),
             error = state.confirmError?.message(),

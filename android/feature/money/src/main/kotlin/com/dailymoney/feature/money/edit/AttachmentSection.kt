@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,14 +56,15 @@ import com.dailymoney.core.domain.money.Attachment
 import com.dailymoney.feature.money.R
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Receipts row on the transaction screen: take a photo, pick a photo, or pick a PDF. */
 @Composable
 internal fun AttachmentSection(
     attachments: List<Attachment>,
-    pathOf: (Attachment) -> String,
-    shareUriOf: (Attachment) -> String,
+    read: suspend (Attachment) -> ByteArray?,
+    viewableUri: suspend (Attachment) -> String?,
     onAdd: (Uri) -> Unit,
     onRemove: (Attachment) -> Unit,
     message: String?,
@@ -71,6 +73,7 @@ internal fun AttachmentSection(
     var menuOpen by remember { mutableStateOf(false) }
     var cameraFile by rememberSaveable { mutableStateOf<String?>(null) }
     var viewing by remember { mutableStateOf<Attachment?>(null) }
+    val scope = rememberCoroutineScope()
 
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val path = cameraFile ?: return@rememberLauncherForActivityResult
@@ -83,8 +86,8 @@ internal fun AttachmentSection(
         Text(stringResource(R.string.receipts), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(attachments, key = { it.id }) { a ->
-                AttachmentTile(a, pathOf(a), onOpen = {
-                    if (a.isImage) viewing = a else openExternally(context, shareUriOf(a), a.mimeType)
+                AttachmentTile(a, read, onOpen = {
+                    if (a.isImage) viewing = a else scope.launch { viewableUri(a)?.let { openExternally(context, it, a.mimeType) } }
                 }, onRemove = { onRemove(a) })
             }
             item {
@@ -123,7 +126,7 @@ internal fun AttachmentSection(
 
     viewing?.let { a ->
         Dialog(onDismissRequest = { viewing = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            val image by rememberImage(pathOf(a), maxSide = 2000)
+            val image by rememberImage(a, read, maxSide = 2000)
             Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim).clickable { viewing = null }, contentAlignment = Alignment.Center) {
                 image?.let { Image(it, contentDescription = stringResource(R.string.receipts), contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth()) }
                 IconButton(onClick = { viewing = null }, modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)) {
@@ -135,14 +138,14 @@ internal fun AttachmentSection(
 }
 
 @Composable
-private fun AttachmentTile(attachment: Attachment, path: String, onOpen: () -> Unit, onRemove: () -> Unit) {
+private fun AttachmentTile(attachment: Attachment, read: suspend (Attachment) -> ByteArray?, onOpen: () -> Unit, onRemove: () -> Unit) {
     Box(Modifier.size(72.dp)) {
         Box(
             Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).clickable(onClick = onOpen),
             contentAlignment = Alignment.Center,
         ) {
             if (attachment.isImage) {
-                val thumb by rememberImage(path, maxSide = 240)
+                val thumb by rememberImage(attachment, read, maxSide = 240)
                 thumb?.let { Image(it, contentDescription = stringResource(R.string.receipts), contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
             } else {
                 Icon(Icons.Filled.PictureAsPdf, contentDescription = stringResource(R.string.receipts_pdf), tint = MaterialTheme.colorScheme.error)
@@ -160,18 +163,19 @@ private fun AttachmentTile(attachment: Attachment, path: String, onOpen: () -> U
 
 /** Decodes a downsampled bitmap off the main thread. */
 @Composable
-private fun rememberImage(path: String, maxSide: Int): State<ImageBitmap?> {
-    val image = remember(path, maxSide) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(path, maxSide) { image.value = loadBitmap(path, maxSide) }
+private fun rememberImage(attachment: Attachment, read: suspend (Attachment) -> ByteArray?, maxSide: Int): State<ImageBitmap?> {
+    val image = remember(attachment.id, maxSide) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(attachment.id, maxSide) { image.value = read(attachment)?.let { decode(it, maxSide) } }
     return image
 }
 
-private suspend fun loadBitmap(path: String, maxSide: Int): ImageBitmap? = withContext(Dispatchers.IO) {
+/** Receipts are decrypted into memory only; this decodes a downsampled bitmap off the main thread. */
+private suspend fun decode(bytes: ByteArray, maxSide: Int): ImageBitmap? = withContext(Dispatchers.Default) {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeFile(path, bounds)
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
     var sample = 1
     while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxSide) sample *= 2
-    BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
 }
 
 private fun openExternally(context: Context, uri: String, mime: String) {

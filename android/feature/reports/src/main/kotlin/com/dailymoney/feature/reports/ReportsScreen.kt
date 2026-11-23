@@ -1,5 +1,6 @@
 package com.dailymoney.feature.reports
 
+import com.dailymoney.core.designsystem.theme.currentLocale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
@@ -24,7 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -50,7 +52,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -65,8 +66,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object ReportsRoute
 
-fun NavGraphBuilder.reportsGraph() {
-    composable<ReportsRoute> { ReportsScreen() }
+fun NavGraphBuilder.reportsGraph(onBack: () -> Unit) {
+    composable<ReportsRoute> { ReportsScreen(onBack) }
 }
 
 data class ReportsUiState(val month: YearMonth, val isCurrentMonth: Boolean, val currency: String, val report: MonthlyReport? = null)
@@ -92,12 +93,17 @@ class ReportsViewModel @Inject constructor(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
+internal fun ReportsScreen(onBack: () -> Unit, viewModel: ReportsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.reports_title)) },
+                navigationIcon = {
+                    androidx.compose.material3.IconButton(onClick = onBack) {
+                        androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.reports_back))
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
@@ -112,7 +118,7 @@ internal fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             MonthSelector(
-                label = state.month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())),
+                label = state.month.format(DateTimeFormatter.ofPattern("MMMM yyyy", currentLocale())),
                 onPrevious = viewModel::previous,
                 onNext = viewModel::next,
                 previousLabel = stringResource(R.string.reports_previous_month),
@@ -144,7 +150,7 @@ internal fun ReportsScreen(viewModel: ReportsViewModel = hiltViewModel()) {
                         Text(stringResource(R.string.reports_trend), style = MaterialTheme.typography.titleMedium)
                         IncomeExpenseBars(
                             groups = report.trend.map {
-                                BarGroup(it.month.format(DateTimeFormatter.ofPattern("MMM", Locale.getDefault())), it.incomeMinor, it.expenseMinor)
+                                BarGroup(it.month.format(DateTimeFormatter.ofPattern("MMM", currentLocale())), it.incomeMinor, it.expenseMinor)
                             },
                             incomeLabel = stringResource(R.string.reports_income),
                             expenseLabel = stringResource(R.string.reports_expenses),

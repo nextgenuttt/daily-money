@@ -127,7 +127,7 @@ through route contracts in `:app`.
 | OCR | ML Kit Text Recognition (on-device, no cloud) |
 | Charts | Custom Compose `Canvas` |
 | Paging | Paging 3 with Room `PagingSource` |
-| SDK | minSdk 26, targetSdk/compileSdk = latest required by Play (36) |
+| SDK | minSdk 26, targetSdk 36 (Play requirement), compileSdk 37.1 (required by current AndroidX) |
 | Quality | Detekt, ktlint, JUnit5, Turbine, Robolectric, Compose UI tests, Macrobenchmark |
 
 ---

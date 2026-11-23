@@ -1,5 +1,6 @@
 package com.dailymoney.feature.home.home
 
+import com.dailymoney.core.designsystem.theme.currentLocale
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,7 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -81,7 +82,6 @@ import com.dailymoney.core.domain.money.TransactionType
 import com.dailymoney.feature.home.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.SharingStarted
@@ -199,7 +199,7 @@ internal fun HomeScreen(
 
 @Composable
 private fun MonthCard(data: DashboardData, currency: String, onOpenBudgets: () -> Unit) {
-    val month = data.month.format(DateTimeFormatter.ofPattern("MMMM", Locale.getDefault()))
+    val month = data.month.format(DateTimeFormatter.ofPattern("MMMM", currentLocale()))
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Text(stringResource(R.string.home_spent_in, month), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)

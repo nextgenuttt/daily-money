@@ -1,5 +1,6 @@
 package com.dailymoney.feature.auth.forgot
 
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -8,7 +9,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -96,6 +97,7 @@ internal fun ForgotPasswordScreen(
             value = state.email,
             onValueChange = viewModel::onEmailChange,
             label = stringResource(R.string.auth_email),
+            contentType = ContentType.EmailAddress + ContentType.Username,
             error = state.emailError?.message(),
             keyboardType = KeyboardType.Email,
             imeAction = ImeAction.Done,

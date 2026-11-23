@@ -1,5 +1,6 @@
 package com.dailymoney.feature.money.common
 
+import com.dailymoney.core.designsystem.theme.currentLocale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
@@ -87,7 +88,7 @@ fun YearMonth.label(): String = format(DateTimeFormatter.ofPattern("MMMM yyyy", 
 fun LocalDate.dayLabel(today: LocalDate): String = when (this) {
     today -> stringResource(R.string.money_today)
     today.minusDays(1) -> stringResource(R.string.money_yesterday)
-    else -> format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault()))
+    else -> format(DateTimeFormatter.ofPattern("EEE, d MMM", currentLocale()))
 }
 
 fun LocalDate.mediumLabel(): String = format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))

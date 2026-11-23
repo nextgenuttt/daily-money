@@ -18,6 +18,11 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", detail);
     }
 
+    /** A request that is well-formed but breaks a business rule (422). */
+    public static ApiException rule(String code, String detail) {
+        return new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, code, detail);
+    }
+
     public HttpStatus status() {
         return status;
     }

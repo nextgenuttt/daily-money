@@ -1,0 +1,32 @@
+package com.dailymoney.permission;
+
+/**
+ * Permission codes (LLD §4.2). There is intentionally no EXPENSE_EDIT_ALL: only an expense's creator
+ * may edit it, and no role or override can change that (spec §13).
+ */
+public enum Permission {
+    EXPENSE_VIEW,
+    EXPENSE_ADD,
+    EXPENSE_EDIT_OWN,
+    EXPENSE_DELETE_OWN,
+    EXPENSE_APPROVE,
+    EXPENSE_SPLIT_MANAGE,
+    EXPENSE_REPORT_VIEW,
+    EXPENSE_BUDGET_MANAGE,
+    MEMBER_INVITE,
+    MEMBER_MANAGE,
+    PERMISSION_MANAGE,
+    ORGANIZATION_SETTINGS_MANAGE,
+    EXPENSE_MESSAGE_SEND,
+    EXPENSE_MESSAGE_RECEIVE,
+    EXPENSE_MESSAGE_REPLY,
+    EXPENSE_NOTIFICATION_RECEIVE,
+    EXPENSE_SMS_SEND,
+    EXPENSE_SMS_NOTIFICATION,
+    EXPENSE_MESSAGE_ATTACH,
+    REMINDER_MANAGE,
+    EVENT_MANAGE,
+    TASK_MANAGE,
+    TASK_ASSIGN,
+    ATTACHMENT_VIEW
+}

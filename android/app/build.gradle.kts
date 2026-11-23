@@ -61,6 +61,7 @@ dependencies {
     implementation(project(":feature:reports"))
     implementation(project(":feature:reminders"))
     implementation(project(":feature:todo"))
+    implementation(project(":feature:groups"))
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.material.icons.extended)
 

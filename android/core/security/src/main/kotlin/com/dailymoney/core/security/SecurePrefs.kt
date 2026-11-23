@@ -1,5 +1,6 @@
 package com.dailymoney.core.security
 
+import com.google.crypto.tink.RegistryConfiguration
 import android.content.Context
 import android.util.Base64
 import com.google.crypto.tink.Aead
@@ -28,7 +29,7 @@ class SecurePrefs @Inject constructor(@ApplicationContext private val context: C
             .withMasterKeyUri(MASTER_KEY_URI)
             .build()
             .keysetHandle
-            .getPrimitive(Aead::class.java)
+            .getPrimitive(RegistryConfiguration.get(), Aead::class.java)
     }
 
     fun getString(key: String): String? {

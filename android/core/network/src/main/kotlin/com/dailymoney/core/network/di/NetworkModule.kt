@@ -5,6 +5,7 @@ import com.dailymoney.core.network.AuthTokenProvider
 import com.dailymoney.core.network.BuildConfig
 import com.dailymoney.core.network.DailyMoneyApi
 import com.dailymoney.core.network.FirebaseTokenInterceptor
+import com.dailymoney.core.network.GroupsApi
 import com.dailymoney.core.network.TokenRefreshAuthenticator
 import dagger.Module
 import dagger.Provides
@@ -52,13 +53,20 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun api(config: AppConfig, client: OkHttpClient, json: Json): DailyMoneyApi {
+    fun groupsApi(retrofit: Retrofit): GroupsApi = retrofit.create(GroupsApi::class.java)
+
+    @Provides
+    @Singleton
+    fun api(retrofit: Retrofit): DailyMoneyApi = retrofit.create(DailyMoneyApi::class.java)
+
+    @Provides
+    @Singleton
+    fun retrofit(config: AppConfig, client: OkHttpClient, json: Json): Retrofit {
         val baseUrl = config.apiBaseUrl.ifBlank { DISABLED_BASE_URL }.let { if (it.endsWith("/")) it else "$it/" }
         return Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
-            .create(DailyMoneyApi::class.java)
     }
 }

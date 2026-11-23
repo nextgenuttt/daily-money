@@ -6,11 +6,10 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.EventNote
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.EventNote
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -48,21 +47,23 @@ import com.dailymoney.feature.todo.navigation.TodoRoute
 import com.dailymoney.feature.todo.navigation.todoGraph
 import com.dailymoney.feature.reminders.navigation.RemindersRoute
 import com.dailymoney.feature.reminders.navigation.remindersGraph
+import com.dailymoney.feature.groups.GroupsRoute
+import com.dailymoney.feature.groups.JoinGroupRoute
+import com.dailymoney.feature.groups.groupsGraph
 import com.dailymoney.feature.reports.ReportsRoute
 import com.dailymoney.feature.reports.reportsGraph
 import kotlin.reflect.KClass
 
 private enum class TopLevel(val route: Any, val routeClasses: List<KClass<*>>, val icon: ImageVector, @StringRes val label: Int) {
     HOME(HomeRoute, listOf(HomeRoute::class), Icons.Filled.Home, R.string.nav_home),
-    MONEY(TransactionsRoute, listOf(TransactionsRoute::class), Icons.Filled.ReceiptLong, R.string.nav_money),
-    PLANNER(RemindersRoute, listOf(RemindersRoute::class, TodoRoute::class), Icons.Filled.EventNote, R.string.nav_planner),
-    BUDGETS(BudgetsRoute, listOf(BudgetsRoute::class), Icons.Filled.PieChart, R.string.nav_budgets),
-    REPORTS(ReportsRoute, listOf(ReportsRoute::class), Icons.Filled.BarChart, R.string.nav_reports),
+    MONEY(TransactionsRoute, listOf(TransactionsRoute::class), Icons.AutoMirrored.Filled.ReceiptLong, R.string.nav_money),
+    PLANNER(RemindersRoute, listOf(RemindersRoute::class, TodoRoute::class), Icons.AutoMirrored.Filled.EventNote, R.string.nav_planner),
+    GROUPS(GroupsRoute, listOf(GroupsRoute::class), Icons.Filled.Groups, R.string.nav_groups),
 }
 
 /**
  * Signed-in area. Features don't know about each other; cross-feature links are wired here.
- * To-Do and Groups join in later phases; Budgets and Reports then move under Money/Home (doc 05 §A.4).
+ * Budgets and Reports live under Money and Home (doc 05 §A.4).
  */
 @Composable
 internal fun MainShell(user: AuthUser, openRequest: OpenRequest?, onOpenHandled: () -> Unit) {
@@ -71,7 +72,8 @@ internal fun MainShell(user: AuthUser, openRequest: OpenRequest?, onOpenHandled:
         when (val req = openRequest ?: return@LaunchedEffect) {
             is OpenRequest.Reminder -> navController.navigate(ReminderDetailRoute(req.id, req.epochDay, req.complete))
             OpenRequest.Subscriptions -> navController.navigate(SubscriptionsRoute)
-            OpenRequest.Budgets -> navController.navigateToTab(BudgetsRoute)
+            OpenRequest.Budgets -> navController.navigate(BudgetsRoute)
+            is OpenRequest.Invite -> navController.navigate(JoinGroupRoute(req.token))
             is OpenRequest.Todo -> navController.navigate(TodoDetailRoute(req.id))
         }
         onOpenHandled()
@@ -110,8 +112,8 @@ internal fun MainShell(user: AuthUser, openRequest: OpenRequest?, onOpenHandled:
                         openTodo = { navController.navigate(TodoDetailRoute(it)) },
                         openTransaction = { id -> navController.navigate(AddEditTransactionRoute(id)) },
                         allTransactions = { navController.navigateToTab(TransactionsRoute) },
-                        budgets = { navController.navigateToTab(BudgetsRoute) },
-                        reports = { navController.navigateToTab(ReportsRoute) },
+                        budgets = { navController.navigate(BudgetsRoute) },
+                        reports = { navController.navigate(ReportsRoute) },
                         subscriptions = { navController.navigate(SubscriptionsRoute) },
                         goals = { navController.navigate(GoalsRoute) },
                         debts = { navController.navigate(DebtsRoute) },
@@ -119,14 +121,15 @@ internal fun MainShell(user: AuthUser, openRequest: OpenRequest?, onOpenHandled:
                         openReminder = { id, day -> navController.navigate(ReminderDetailRoute(id, day)) },
                     ),
                 )
-                moneyGraph(navController)
+                moneyGraph(navController, onReports = { navController.navigate(ReportsRoute) })
                 remindersGraph(
                     navController,
                     onTodo = { navController.navigate(TodoRoute) { popUpTo(RemindersRoute); launchSingleTop = true } },
                     onOpenTask = { navController.navigate(TodoDetailRoute(it)) },
                 )
                 todoGraph(navController, onReminders = { if (!navController.popBackStack(RemindersRoute, inclusive = false)) navController.navigateToTab(RemindersRoute) })
-                reportsGraph()
+                reportsGraph(onBack = { navController.popBackStack() })
+                groupsGraph(navController)
             }
         }
     }

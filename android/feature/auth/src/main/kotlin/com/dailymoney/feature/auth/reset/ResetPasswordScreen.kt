@@ -1,5 +1,6 @@
 package com.dailymoney.feature.auth.reset
 
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -11,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -125,6 +126,7 @@ fun ResetPasswordScreen(
             value = state.password,
             onValueChange = viewModel::onPasswordChange,
             label = stringResource(R.string.auth_new_password),
+            contentType = ContentType.NewPassword,
             showLabel = stringResource(R.string.auth_show_password),
             hideLabel = stringResource(R.string.auth_hide_password),
             imeAction = ImeAction.Next,
@@ -134,6 +136,7 @@ fun ResetPasswordScreen(
             value = state.confirm,
             onValueChange = viewModel::onConfirmChange,
             label = stringResource(R.string.auth_confirm_password),
+            contentType = ContentType.NewPassword,
             showLabel = stringResource(R.string.auth_show_password),
             hideLabel = stringResource(R.string.auth_hide_password),
             error = state.confirmError?.message(),

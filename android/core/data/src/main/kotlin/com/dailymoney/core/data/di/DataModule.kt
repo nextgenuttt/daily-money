@@ -11,6 +11,10 @@ import com.dailymoney.core.domain.money.BudgetRepository
 import com.dailymoney.core.domain.money.CategoryRepository
 import com.dailymoney.core.domain.money.TransactionRepository
 import java.time.Clock
+import com.dailymoney.core.data.backup.BackupManager
+import com.dailymoney.core.domain.backup.BackupService
+import com.dailymoney.core.data.groups.RemoteGroupRepository
+import com.dailymoney.core.domain.groups.GroupRepository
 import com.dailymoney.core.data.todo.RoomTodoRepository
 import com.dailymoney.core.domain.todo.TodoRepository
 import com.dailymoney.core.data.reminders.AndroidNotifier
@@ -112,6 +116,12 @@ abstract class DataModule {
 
     @Binds
     abstract fun todoRepository(impl: RoomTodoRepository): TodoRepository
+
+    @Binds
+    abstract fun groupRepository(impl: RemoteGroupRepository): GroupRepository
+
+    @Binds
+    abstract fun backupService(impl: BackupManager): BackupService
 
     companion object {
         @Provides

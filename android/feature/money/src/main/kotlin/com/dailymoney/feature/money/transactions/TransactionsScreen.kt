@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Autorenew
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Handshake
@@ -24,7 +26,7 @@ import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -53,7 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailymoney.core.designsystem.component.EmptyState
 import com.dailymoney.core.designsystem.money.AmountStat
@@ -158,7 +160,7 @@ internal fun TransactionsScreen(
                 data == null -> item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 data.days.isEmpty() -> item {
                     EmptyState(
-                        icon = Icons.Filled.ReceiptLong,
+                        icon = Icons.AutoMirrored.Filled.ReceiptLong,
                         title = stringResource(if (state.query.isBlank() && state.type == null) R.string.money_empty_title else R.string.money_no_results),
                         message = if (state.query.isBlank() && state.type == null) stringResource(R.string.money_empty_body) else "",
                     )
@@ -219,6 +221,8 @@ internal fun TransactionRow(details: TransactionDetails, onClick: () -> Unit) {
 
 
 enum class MoneyMenuItem(@StringRes val label: Int, val icon: ImageVector) {
+    BUDGETS(R.string.money_budgets, Icons.Filled.PieChart),
+    REPORTS(R.string.money_reports, Icons.Filled.BarChart),
     CATEGORIES(R.string.money_categories, Icons.Filled.Category),
     RECURRING(R.string.recurring_title, Icons.Filled.Autorenew),
     SUBSCRIPTIONS(R.string.subs_title, Icons.Filled.Subscriptions),

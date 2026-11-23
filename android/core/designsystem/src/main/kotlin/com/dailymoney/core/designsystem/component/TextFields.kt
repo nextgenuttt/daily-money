@@ -1,5 +1,8 @@
 package com.dailymoney.core.designsystem.component
 
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,6 +37,7 @@ fun AppTextField(
     imeAction: ImeAction = ImeAction.Next,
     onImeAction: () -> Unit = {},
     enabled: Boolean = true,
+    contentType: ContentType? = null,
 ) {
     OutlinedTextField(
         value = value,
@@ -50,7 +54,7 @@ fun AppTextField(
             autoCorrectEnabled = false,
         ),
         keyboardActions = KeyboardActions(onAny = { onImeAction() }),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().autofill(contentType),
     )
 }
 
@@ -66,6 +70,7 @@ fun PasswordField(
     imeAction: ImeAction = ImeAction.Done,
     onImeAction: () -> Unit = {},
     enabled: Boolean = true,
+    contentType: ContentType? = null,
 ) {
     var visible by rememberSaveable { mutableStateOf(false) }
     OutlinedTextField(
@@ -87,6 +92,10 @@ fun PasswordField(
         },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = imeAction),
         keyboardActions = KeyboardActions(onAny = { onImeAction() }),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().autofill(contentType),
     )
 }
+
+/** Lets password managers fill (and offer to save) sign-in fields. */
+private fun Modifier.autofill(contentType: ContentType?) =
+    if (contentType == null) this else semantics { this.contentType = contentType }

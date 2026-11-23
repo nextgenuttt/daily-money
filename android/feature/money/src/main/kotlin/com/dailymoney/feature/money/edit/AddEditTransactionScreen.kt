@@ -46,7 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailymoney.core.designsystem.component.ErrorBanner
 import com.dailymoney.core.designsystem.component.PrimaryButton
@@ -209,8 +209,8 @@ internal fun AddEditTransactionScreen(
 
             AttachmentSection(
                 attachments = state.attachments,
-                pathOf = viewModel::attachmentPath,
-                shareUriOf = viewModel::attachmentShareUri,
+                read = viewModel::readAttachment,
+                viewableUri = viewModel::viewableUri,
                 onAdd = viewModel::addAttachment,
                 onRemove = viewModel::removeAttachment,
                 message = state.attachmentMessage?.let {

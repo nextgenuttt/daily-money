@@ -5,8 +5,8 @@ Personal finance, reminders and family expense app.
 | Folder | What |
 |---|---|
 | `docs/` | Analysis, HLD, LLD, login plan, design & storage decisions |
-| `android/` | Android app — Kotlin, Jetpack Compose, Material 3, Room + SQLCipher, Hilt |
-| `backend/` | Spring Boot API — Java 17, Firebase ID-token auth, Supabase Postgres, Flyway |
+| `android/` | Android app — Kotlin 2.4, Jetpack Compose, Material 3, Room + SQLCipher, Hilt (AGP 9.5, compileSdk 37.1, targetSdk 36) |
+| `backend/` | Spring Boot 4.2 API — Java 17, Firebase ID-token auth, Supabase Postgres, Flyway |
 | `firebase/hosting/` | Email action page (verify / reset password) + Android App Link file |
 
 Login is **Firebase Auth** (email + password, Google). **Supabase** is used only for the
@@ -21,10 +21,16 @@ Postgres database and file storage, and only the backend talks to it.
 | 2b. Recurring transactions, subscriptions, savings goals, debts & lending, receipts, CSV/PDF export | Done |
 | 3. Reminders, events, calendar, notifications (incl. budget alerts and subscription renewals) | Done |
 | 4. To-Do: tasks, subtasks, checklists, repeating tasks, task reminders, quick add | Done |
-| 5. Organizations (R2 starts: backend sync, groups, invitations, roles) | Next |
+| 5. Organizations: groups, roles, invitation links, members, ownership (backend + app) | Done (needs a running backend to use) |
+| 6. Permission engine: per-member overrides, role editing, permission cache | Done (needs a running backend to use) |
+| Hardening: encrypted backup & restore (offered before sign-out), encrypted receipt files, app icon, Google logo, password-manager autofill, libraries on current stable versions | Done |
+| Device test with real Firebase + Supabase | Waiting for project details (see Configuration) |
 
 Personal money data is stored only on the phone (encrypted Room database) until the R2 sync
-arrives; signing out deletes it.
+arrives; signing out deletes it. **Settings → Back up to a file** saves a password-protected copy
+(PBKDF2-SHA256 + AES-256-GCM) that **Restore from a backup** brings back; the sign-out dialog offers
+"Back up first". Receipt photos are encrypted on the phone (Tink, key in Android Keystore) and are not
+part of the backup.
 
 ## Configuration (fill in when you have the details)
 
@@ -52,6 +58,7 @@ Also put `google-services.json` (from the Firebase console) in `android/app/`.
 | `SUPABASE_DB_PASSWORD` | (secret) |
 | `SUPABASE_URL` | `https://<project-ref>.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | (secret) |
+| `INVITE_LINK_BASE` | `https://YOUR_FIREBASE_PROJECT.web.app/invite/` |
 
 ## Build
 

@@ -4,7 +4,8 @@
     "cleanUrls": true,
     "rewrites": [
       { "source": "/auth/action", "destination": "/auth/action/index.html" },
-      { "source": "/auth/done", "destination": "/auth/done/index.html" }
+      { "source": "/auth/done", "destination": "/auth/done/index.html" },
+      { "source": "/invite/**", "destination": "/invite/index.html" }
     ],
     "headers": [
       {

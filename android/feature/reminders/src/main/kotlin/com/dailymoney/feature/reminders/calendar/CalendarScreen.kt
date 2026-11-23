@@ -1,5 +1,6 @@
 package com.dailymoney.feature.reminders.calendar
 
+import com.dailymoney.core.designsystem.theme.currentLocale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,7 +42,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -68,7 +69,6 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
-import java.util.Locale
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -153,7 +153,7 @@ internal fun CalendarScreen(
         ) {
             item {
                 MonthSelector(
-                    label = state.month.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())),
+                    label = state.month.format(DateTimeFormatter.ofPattern("MMMM yyyy", currentLocale())),
                     onPrevious = viewModel::previous,
                     onNext = viewModel::next,
                     previousLabel = stringResource(R.string.cal_previous),
@@ -183,7 +183,7 @@ internal fun CalendarScreen(
 
 @Composable
 private fun MonthGrid(state: CalendarUiState, onSelect: (LocalDate) -> Unit) {
-    val firstDay = WeekFields.of(Locale.getDefault()).firstDayOfWeek
+    val firstDay = WeekFields.of(currentLocale()).firstDayOfWeek
     val weekdays = (0..6).map { firstDay.plus(it.toLong()) }
     val leading = (state.month.atDay(1).dayOfWeek.value - firstDay.value + 7) % 7
     val cells = List(leading) { null } + (1..state.month.lengthOfMonth()).map { state.month.atDay(it) }
@@ -191,7 +191,7 @@ private fun MonthGrid(state: CalendarUiState, onSelect: (LocalDate) -> Unit) {
         Row(Modifier.fillMaxWidth()) {
             weekdays.forEach { d: DayOfWeek ->
                 Text(
-                    d.getDisplayName(TextStyle.SHORT, Locale.getDefault()).uppercase(),
+                    d.getDisplayName(TextStyle.SHORT, currentLocale()).uppercase(),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

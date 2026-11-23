@@ -190,8 +190,8 @@ class AddEditTransactionViewModel @Inject constructor(
         viewModelScope.launch { attachments.delete(attachment.id) }
     }
 
-    fun attachmentPath(attachment: Attachment) = attachments.filePath(attachment)
-    fun attachmentShareUri(attachment: Attachment) = attachments.shareableUri(attachment)
+    suspend fun readAttachment(attachment: Attachment): ByteArray? = attachments.read(attachment)
+    suspend fun viewableUri(attachment: Attachment): String? = attachments.viewableUri(attachment)
 
     fun save() {
         if (meta.value.saving) return

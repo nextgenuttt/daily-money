@@ -16,6 +16,7 @@ import com.dailymoney.core.domain.money.Attachment
 import com.dailymoney.core.domain.money.AttachmentRepository
 import com.dailymoney.core.domain.money.AttachmentResult
 import com.dailymoney.core.domain.money.Ids
+import com.dailymoney.core.security.FileCipher
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.time.Clock
@@ -26,14 +27,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * Receipts live in the app's private files folder (deleted at sign-out). Photos are shrunk to
- * 1600 px WebP on the phone (doc 05 §B.3) so storage and later uploads stay small.
+ * Receipts live in the app's private files folder, encrypted (FileCipher), and are deleted at sign-out.
+ * Photos are shrunk to 1600 px WebP on the phone (doc 05 §B.3) so storage and later uploads stay small.
  */
 @Singleton
 class AttachmentStore @Inject constructor(
     @ApplicationContext private val context: Context,
     private val db: DatabaseManager,
     private val clock: Clock,
+    private val cipher: FileCipher,
 ) : AttachmentRepository {
 
     private val dir: File get() = File(context.filesDir, DIR).apply { mkdirs() }
@@ -82,10 +84,18 @@ class AttachmentStore @Inject constructor(
         }
     }
 
-    override fun shareableUri(attachment: Attachment): String =
-        FileProvider.getUriForFile(context, "${context.packageName}.files", File(dir, attachment.fileName)).toString()
+    override suspend fun read(attachment: Attachment): ByteArray? = io {
+        val file = File(dir, attachment.fileName)
+        if (!file.exists()) return@io null
+        runCatching { cipher.decrypt(file.inputStream(), attachment.fileName).use { it.readBytes() } }.getOrNull()
+    }
 
-    override fun filePath(attachment: Attachment): String = File(dir, attachment.fileName).absolutePath
+    override suspend fun viewableUri(attachment: Attachment): String? = io {
+        val bytes = read(attachment) ?: return@io null
+        val out = File(File(context.cacheDir, SHARED_DIR).apply { mkdirs() }, attachment.fileName)
+        out.writeBytes(bytes)
+        FileProvider.getUriForFile(context, "${context.packageName}.files", out).toString()
+    }
 
     private fun compressImage(uri: Uri, target: File) {
         val resolver = context.contentResolver
@@ -110,7 +120,7 @@ class AttachmentStore @Inject constructor(
         val output = if (matrix.isIdentity) decoded else Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
         @Suppress("DEPRECATION")
         val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
-        target.outputStream().use { output.compress(format, QUALITY, it) }
+        cipher.encrypt(target.outputStream(), target.name).use { output.compress(format, QUALITY, it) }
         if (output !== decoded) output.recycle()
         decoded.recycle()
     }
@@ -118,7 +128,7 @@ class AttachmentStore @Inject constructor(
     private fun copyLimited(uri: Uri, target: File) {
         context.contentResolver.openInputStream(uri).use { input ->
             requireNotNull(input)
-            target.outputStream().use { out ->
+            cipher.encrypt(target.outputStream(), target.name).use { out ->
                 val buffer = ByteArray(64 * 1024)
                 var total = 0L
                 while (true) {
@@ -145,6 +155,7 @@ class AttachmentStore @Inject constructor(
 
     companion object {
         const val DIR = "attachments"
+        private const val SHARED_DIR = "shared"
         private const val PDF = "application/pdf"
         private const val MAX_SIDE = 1600
         private const val QUALITY = 75

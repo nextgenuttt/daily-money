@@ -3,4 +3,6 @@
 <paths>
     <files-path name="attachments" path="attachments/" />
     <cache-path name="camera" path="camera/" />
+    <!-- Decrypted copies of PDF receipts while a viewer app has them open; cleared at sign-out. -->
+    <cache-path name="shared" path="shared/" />
 </paths>

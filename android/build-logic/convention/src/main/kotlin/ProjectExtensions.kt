@@ -14,24 +14,20 @@ internal val Project.libs: VersionCatalog
 
 internal fun VersionCatalog.lib(alias: String) = findLibrary(alias).get()
 
-internal const val COMPILE_SDK = 35
-internal const val TARGET_SDK = 35
+internal const val COMPILE_SDK = 37
+internal const val COMPILE_SDK_MINOR = 1
+internal const val TARGET_SDK = 36
 internal const val MIN_SDK = 26
 
-internal fun Project.configureKotlinAndroid(extension: CommonExtension<*, *, *, *, *, *>) {
+internal fun Project.configureKotlinAndroid(extension: CommonExtension) {
     extension.apply {
         compileSdk = COMPILE_SDK
-        defaultConfig {
-            minSdk = MIN_SDK
-            testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        }
-        compileOptions {
-            sourceCompatibility = JavaVersion.VERSION_17
-            targetCompatibility = JavaVersion.VERSION_17
-        }
-        testOptions {
-            unitTests.isReturnDefaultValues = true
-        }
+        compileSdkMinor = COMPILE_SDK_MINOR
+        defaultConfig.minSdk = MIN_SDK
+        defaultConfig.testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        compileOptions.sourceCompatibility = JavaVersion.VERSION_17
+        compileOptions.targetCompatibility = JavaVersion.VERSION_17
+        testOptions.unitTests.isReturnDefaultValues = true
     }
     extensions.configure<KotlinAndroidProjectExtension> {
         compilerOptions {
@@ -45,7 +41,7 @@ internal fun Project.configureKotlinAndroid(extension: CommonExtension<*, *, *, 
     }
 }
 
-internal fun Project.configureCompose(extension: CommonExtension<*, *, *, *, *, *>) {
+internal fun Project.configureCompose(extension: CommonExtension) {
     pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
     extension.buildFeatures.compose = true
     dependencies {

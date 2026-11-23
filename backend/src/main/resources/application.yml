@@ -10,6 +10,8 @@ spring:
     password: ${SUPABASE_DB_PASSWORD:postgres}
     hikari:
       maximum-pool-size: 10
+      # Every connection (JPA and plain SQL) works in our schema, not Supabase's public one.
+      schema: app
   jpa:
     open-in-view: false
     hibernate:
@@ -31,6 +33,8 @@ app:
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:set-firebase-project-id}
     service-account-file: ${FIREBASE_SERVICE_ACCOUNT_FILE:}
+  invite:
+    link-base: ${INVITE_LINK_BASE:https://dailymoney-app.web.app/invite/}
   supabase:
     url: ${SUPABASE_URL:}
     service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}

@@ -1,6 +1,6 @@
 package com.dailymoney.feature.auth.welcome
 
-import android.app.Activity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,11 +25,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailymoney.core.designsystem.component.ErrorBanner
 import com.dailymoney.core.designsystem.component.GoogleSignInButton
@@ -46,7 +45,7 @@ internal fun WelcomeScreen(
     viewModel: GoogleOnlyViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val activity = LocalContext.current as Activity
+    val activity = requireNotNull(LocalActivity.current)
 
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().systemBarsPadding(), contentAlignment = Alignment.Center) {

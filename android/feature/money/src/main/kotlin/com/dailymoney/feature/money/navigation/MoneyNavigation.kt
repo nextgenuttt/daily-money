@@ -32,8 +32,8 @@ import kotlinx.serialization.Serializable
 @Serializable data class DebtDetailRoute(val debtId: String)
 @Serializable data object ExportRoute
 
-/** Money screens. Top-level destinations (Transactions, Budgets) are shown in the app's bottom bar. */
-fun NavGraphBuilder.moneyGraph(navController: NavController) {
+/** [onReports] opens the Reports feature (wired by the app). */
+fun NavGraphBuilder.moneyGraph(navController: NavController, onReports: () -> Unit) {
     val back: () -> Unit = { navController.popBackStack() }
     composable<TransactionsRoute> {
         TransactionsScreen(
@@ -41,8 +41,11 @@ fun NavGraphBuilder.moneyGraph(navController: NavController) {
             onOpen = { id -> navController.navigate(AddEditTransactionRoute(id)) },
             onAccounts = { navController.navigate(AccountsRoute) },
             onMenu = { item ->
+                if (item == MoneyMenuItem.REPORTS) return@TransactionsScreen onReports()
                 navController.navigate(
                     when (item) {
+                        MoneyMenuItem.BUDGETS -> BudgetsRoute
+                        MoneyMenuItem.REPORTS -> error("handled above")
                         MoneyMenuItem.CATEGORIES -> CategoriesRoute
                         MoneyMenuItem.RECURRING -> RecurringRoute
                         MoneyMenuItem.SUBSCRIPTIONS -> SubscriptionsRoute
@@ -57,7 +60,7 @@ fun NavGraphBuilder.moneyGraph(navController: NavController) {
     composable<AddEditTransactionRoute> { AddEditTransactionScreen(onClose = back) }
     composable<AccountsRoute> { AccountsScreen(onBack = back) }
     composable<CategoriesRoute> { CategoriesScreen(onBack = back) }
-    composable<BudgetsRoute> { BudgetsScreen() }
+    composable<BudgetsRoute> { BudgetsScreen(onBack = back) }
     composable<RecurringRoute> { RecurringScreen(onBack = back, onAdd = { navController.navigate(AddEditTransactionRoute()) }) }
     composable<SubscriptionsRoute> { SubscriptionsScreen(onBack = back) }
     composable<GoalsRoute> { GoalsScreen(onBack = back, onOpen = { navController.navigate(GoalDetailRoute(it)) }) }

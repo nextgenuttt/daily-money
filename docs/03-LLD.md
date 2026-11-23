@@ -1052,7 +1052,7 @@ selected), `429 RATE_LIMITED`.
 | Accounts / categories | `GET/POST /accounts`, `PUT/DELETE /accounts/{id}`, `GET/POST /categories`, `PUT/DELETE /categories/{id}` |
 | Transactions | `POST /transactions`, `GET /transactions?orgId=&type=&from=&to=&categoryId=&q=`, `GET/PUT/DELETE /transactions/{id}` (`/expenses` = alias with `type=DEBIT`) |
 | Visibility | `PUT /transactions/{id}/visibility` `{visibility, allowedMemberIds[]}`, `GET /transactions/{id}/allowed-members` |
-| Organizations | `POST/GET /organizations`, `GET/PUT /organizations/{id}`, `GET /organizations/{id}/members`, `DELETE /organizations/{id}/members/{userId}`, `POST /organizations/{id}/invitations`, `POST /invitations/{token}/accept` |
+| Organizations | `POST/GET /organizations`, `GET/PUT/DELETE /organizations/{id}`, `GET /organizations/{id}/members`, `PUT /organizations/{id}/members/{userId}/role`, `DELETE /organizations/{id}/members/{userId}`, `POST /organizations/{id}/leave`, `POST /organizations/{id}/transfer-ownership`, `POST/GET /organizations/{id}/invitations`, `DELETE /invitations/{id}`, `GET /invitations/by-token/{token}`, `POST /invitations/by-token/{token}/accept`, `POST /invitations/by-token/{token}/decline` |
 | Permissions | `GET /organizations/{id}/permissions` (definitions + role matrix), `PUT /organizations/{id}/roles/{roleId}/permissions`, `GET/PUT /organizations/{id}/members/{userId}/permissions`, `GET /organizations/{id}/me/permissions` (effective, drives UI) |
 | Org summaries | `GET /organizations/{id}/summary?month=`, `/members-summary`, `/categories-summary`, `/balances` |
 | Approval | `GET/PUT /organizations/{id}/approval-policy`, `GET/POST /organizations/{id}/approval-rules`, `PUT/DELETE /approval-rules/{id}`, `GET /organizations/{id}/pending-approvals`, `POST /transactions/{id}/approve`, `POST /transactions/{id}/reject` `{reason}`, `GET /transactions/{id}/approvals` |
@@ -1231,6 +1231,19 @@ flowchart TB
     OrgDashboard --> OrgSettings --> ApprovalPolicy & CommunicationSettings & OrgNotificationSettings
     Settings --> NotificationPreferences & Security & BackupExport & Profile
 ```
+
+### 12.x Local backup & restore (built)
+
+- **What:** all personal Room tables (accounts, categories, transactions, budgets, recurring rules, goals,
+  debts, reminders + steps + occurrences, to-dos + checklist + activity). Sync outbox, receipt rows and
+  budget-alert bookkeeping are left out. Receipt files are not included.
+- **Format:** JSON envelope `{format:"dailymoney-backup", version, kdf:"PBKDF2-HMAC-SHA256", iterations:210000,
+  salt, iv, data}`; `data` = AES-256-GCM of `{schema, createdAt, tables{name:[rows]}}`. Wrong password or a
+  modified file fails the GCM tag check. Minimum password 8 characters.
+- **Where:** the user picks the file with the system file screens (no storage permission). `core/data/backup`
+  (`BackupCodec`, `TableSnapshot`, `BackupManager`), `RestoreBackupUseCase` re-plans alarms after a restore.
+- **Restore:** refuses backups from a newer schema; replaces all listed tables in one transaction
+  (all or nothing). Offered from Settings and from the sign-out dialog ("Back up first").
 
 Deep links: `dmapp://transaction/{id}`, `dmapp://approval/{id}`, `dmapp://reminder/{id}/{occursAt}`
 used by notifications (each re-checks access before rendering).

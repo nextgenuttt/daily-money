@@ -16,7 +16,7 @@ import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Icon
@@ -32,7 +32,7 @@ import com.dailymoney.core.domain.reminders.ReminderGroup
 import com.dailymoney.core.domain.reminders.ReminderKind
 
 fun reminderIcon(kind: ReminderKind): ImageVector = when (kind) {
-    ReminderKind.BILL -> Icons.Filled.ReceiptLong
+    ReminderKind.BILL -> Icons.AutoMirrored.Filled.ReceiptLong
     ReminderKind.EMI -> Icons.Filled.CalendarMonth
     ReminderKind.CREDIT_CARD -> Icons.Filled.CreditCard
     ReminderKind.INSURANCE -> Icons.Filled.Shield

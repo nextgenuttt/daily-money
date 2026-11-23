@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Daily Money · Group invitation</title>
+  <link rel="stylesheet" href="/auth/style.css">
+</head>
+<body>
+  <!--
+    Group invitation link (phase 5). With the app installed, Android opens this URL in the app
+    (App Link) and this page is never shown. Otherwise it explains what to do next.
+    The token in the URL is never sent anywhere by this page.
+  -->
+  <main class="card">
+    <h1>You're invited to a group</h1>
+    <p>Someone invited you to share expenses, reminders and tasks on Daily Money.</p>
+    <p>Install the Daily Money app on your Android phone, sign in, then open this link again (or paste it in Groups → Join with a link).</p>
+    <button id="copy" type="button">Copy this link</button>
+    <p id="copied" class="hidden">Link copied.</p>
+  </main>
+  <script>
+    document.getElementById("copy").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        document.getElementById("copied").classList.remove("hidden");
+      } catch (e) { /* clipboard blocked: the user can copy from the address bar */ }
+    });
+  </script>
+</body>
+</html>

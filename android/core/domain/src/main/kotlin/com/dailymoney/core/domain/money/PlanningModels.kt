@@ -142,9 +142,14 @@ interface AttachmentRepository {
     /** Removes attachments of a transaction that was never saved, or was deleted. */
     suspend fun deleteFor(entityId: String)
 
-    /** A content:// URI another app (viewer) can open, valid while permission is granted. */
-    fun shareableUri(attachment: Attachment): String
-    fun filePath(attachment: Attachment): String
+    /** Decrypted content, for showing a photo. Null if the file is missing or can't be read. */
+    suspend fun read(attachment: Attachment): ByteArray?
+
+    /**
+     * A content:// URI another app (PDF viewer) can open. The file is decrypted into the app cache,
+     * which is cleared at sign-out.
+     */
+    suspend fun viewableUri(attachment: Attachment): String?
 }
 
 interface BackgroundJobs {
