@@ -16,7 +16,12 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.SettingsBackupRestore
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.PersonRemove
+import androidx.compose.material.icons.filled.Policy
+import androidx.compose.ui.platform.LocalUriHandler
+import com.dailymoney.core.domain.auth.DeleteAccountResult
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -53,6 +58,7 @@ import java.time.LocalDate
 internal fun SettingsScreen(
     user: AuthUser,
     onBack: () -> Unit,
+    onNotifications: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -89,6 +95,13 @@ internal fun SettingsScreen(
                 headlineContent = { Text(user.displayName ?: user.email.orEmpty()) },
                 supportingContent = { if (user.displayName != null) Text(user.email.orEmpty()) },
                 leadingContent = { Icon(Icons.Filled.AccountCircle, contentDescription = null) },
+            )
+            UpiIdItem()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.notif_settings_title)) },
+                supportingContent = { Text(stringResource(R.string.notif_settings_entry_hint)) },
+                leadingContent = { Icon(Icons.Filled.Notifications, contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onNotifications),
             )
             HorizontalDivider()
             Text(
@@ -134,6 +147,29 @@ internal fun SettingsScreen(
                 ErrorBanner(
                     stringResource(R.string.settings_sign_out_everywhere_failed),
                     modifier = Modifier.padding(Spacing.md),
+                )
+            }
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_delete_account), color = MaterialTheme.colorScheme.error) },
+                leadingContent = { Icon(Icons.Filled.PersonRemove, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                modifier = Modifier.clickable(enabled = !state.working, onClick = viewModel::onDeleteAccountClick),
+            )
+            state.deleteProblem?.let { problem ->
+                ErrorBanner(
+                    when (problem) {
+                        is DeleteAccountResult.TransferOwnershipFirst -> stringResource(R.string.delete_account_owner, problem.groups)
+                        DeleteAccountResult.SignInAgain -> stringResource(R.string.delete_account_sign_in_again)
+                        else -> stringResource(R.string.delete_account_failed)
+                    },
+                    modifier = Modifier.padding(Spacing.md),
+                )
+            }
+            if (state.privacyUrl.isNotBlank()) {
+                val uriHandler = LocalUriHandler.current
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.settings_privacy)) },
+                    leadingContent = { Icon(Icons.Filled.Policy, contentDescription = null) },
+                    modifier = Modifier.clickable { runCatching { uriHandler.openUri(state.privacyUrl) } },
                 )
             }
             Text(
@@ -188,6 +224,22 @@ internal fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = viewModel::dismissDialog) { Text(stringResource(R.string.logout_cancel)) }
+            },
+        )
+        LogoutDialog.ConfirmDelete -> AlertDialog(
+            onDismissRequest = viewModel::dismissDialog,
+            title = { Text(stringResource(R.string.delete_account_title)) },
+            text = { Text(stringResource(R.string.delete_account_body)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirm) {
+                    Text(stringResource(R.string.delete_account_confirm), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = viewModel::dismissDialog) { Text(stringResource(R.string.logout_cancel)) }
+                    TextButton(onClick = { viewModel.onBackupClick() }) { Text(stringResource(R.string.logout_backup_first)) }
+                }
             },
         )
         null -> Unit

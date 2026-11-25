@@ -3,6 +3,10 @@ package com.dailymoney.identity.infra;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -13,6 +17,13 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.messaging.AndroidConfig;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingException;
+import com.google.firebase.messaging.MessagingErrorCode;
+import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.SendResponse;
+import com.dailymoney.sync.PushGateway;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,21 +35,75 @@ public class FirebaseAdminConfig {
 
     @Bean
     FirebaseAccountAdmin firebaseAccountAdmin(FirebaseProperties properties) throws IOException {
-        String file = properties.serviceAccountFile();
-        if (file == null || file.isBlank()) {
+        FirebaseApp app = app(properties);
+        if (app == null) {
             LOGGER.warning("FIREBASE_SERVICE_ACCOUNT_FILE is not set: sign-out-everywhere only rejects current "
                     + "tokens and account deletion will not remove the Firebase user");
             return new DisabledAdmin();
         }
-        FirebaseApp app;
+        return new SdkAdmin(FirebaseAuth.getInstance(app));
+    }
+
+    @Bean
+    PushGateway pushGateway(FirebaseProperties properties) throws IOException {
+        FirebaseApp app = app(properties);
+        if (app == null) {
+            LOGGER.warning("FIREBASE_SERVICE_ACCOUNT_FILE is not set: other phones sync only when opened, not instantly");
+            return tokens -> Set.of();
+        }
+        return new FcmPushGateway(FirebaseMessaging.getInstance(app));
+    }
+
+    private static synchronized FirebaseApp app(FirebaseProperties properties) throws IOException {
+        String file = properties.serviceAccountFile();
+        if (file == null || file.isBlank()) return null;
+        if (!FirebaseApp.getApps().isEmpty()) return FirebaseApp.getInstance();
         try (InputStream in = new FileInputStream(file)) {
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(in))
                     .setProjectId(properties.projectId())
                     .build();
-            app = FirebaseApp.getApps().isEmpty() ? FirebaseApp.initializeApp(options) : FirebaseApp.getInstance();
+            return FirebaseApp.initializeApp(options);
         }
-        return new SdkAdmin(FirebaseAuth.getInstance(app));
+    }
+
+    /** Data-only, collapsible: many changes while a phone is asleep wake it once. */
+    private static final class FcmPushGateway implements PushGateway {
+
+        private static final int BATCH = 500;
+
+        private final FirebaseMessaging messaging;
+
+        FcmPushGateway(FirebaseMessaging messaging) {
+            this.messaging = messaging;
+        }
+
+        // The app still registers FCM tokens; moving both sides to installation IDs (setFid) is a follow-up.
+        @SuppressWarnings("deprecation")
+        @Override
+        public Set<String> sendSyncPoke(List<String> tokens) {
+            Set<String> invalid = new HashSet<>();
+            for (int from = 0; from < tokens.size(); from += BATCH) {
+                List<String> batch = tokens.subList(from, Math.min(tokens.size(), from + BATCH));
+                AndroidConfig android = AndroidConfig.builder().setCollapseKey("sync").setTtl(Duration.ofDays(1).toMillis()).build();
+                List<Message> messages = batch.stream()
+                        .map(token -> Message.builder().setToken(token).putData("type", "SYNC").setAndroidConfig(android).build())
+                        .toList();
+                try {
+                    List<SendResponse> responses = messaging.sendEach(messages).getResponses();
+                    for (int i = 0; i < responses.size(); i++) {
+                        SendResponse r = responses.get(i);
+                        if (!r.isSuccessful() && r.getException() != null
+                                && r.getException().getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
+                            invalid.add(batch.get(i));
+                        }
+                    }
+                } catch (FirebaseMessagingException e) {
+                    LOGGER.log(Level.WARNING, "FCM sync poke failed", e);
+                }
+            }
+            return invalid;
+        }
     }
 
     private static final class SdkAdmin implements FirebaseAccountAdmin {

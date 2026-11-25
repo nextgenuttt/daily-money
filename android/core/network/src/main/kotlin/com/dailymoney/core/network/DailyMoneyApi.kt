@@ -18,4 +18,7 @@ interface DailyMoneyApi {
 
     @POST("api/v1/auth/logout-all")
     suspend fun logoutAll(): Response<Unit>
+
+    @DELETE("api/v1/me")
+    suspend fun deleteAccount(): Response<Unit>
 }

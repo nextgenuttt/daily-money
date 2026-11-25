@@ -1,5 +1,6 @@
 package com.dailymoney.core.domain.groups
 
+import com.dailymoney.core.domain.sharing.ApprovalPolicy
 import java.time.Instant
 
 enum class GroupKind { FAMILY, FRIENDS, OFFICE, TRAVEL, OTHER }
@@ -135,6 +136,10 @@ interface GroupRepository {
     suspend fun updateRole(id: String, roleId: String, permissions: Set<String>): GroupResult<Unit>
     suspend fun memberPermissions(id: String, userId: String): GroupResult<MemberPermissions>
     suspend fun setOverrides(id: String, userId: String, overrides: Map<String, PermissionEffect>): GroupResult<Unit>
+    suspend fun approvalPolicy(id: String): GroupResult<ApprovalPolicy>
+    suspend fun saveApprovalPolicy(id: String, policy: ApprovalPolicy): GroupResult<ApprovalPolicy>
+    suspend fun approve(expenseId: String, version: Int): GroupResult<Unit>
+    suspend fun reject(expenseId: String, version: Int, reason: String): GroupResult<Unit>
 }
 
 object InviteLinks {

@@ -2,6 +2,7 @@ package com.dailymoney.shared.security;
 
 import com.dailymoney.identity.application.TokenRevocationService;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -22,7 +23,8 @@ public class SecurityConfig {
             "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, TokenRevocationService revocationService) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, TokenRevocationService revocationService,
+            @Value("${app.rate-limit.per-minute:240}") int perMinute, @Value("${app.rate-limit.burst:120}") int burst) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -31,7 +33,8 @@ public class SecurityConfig {
                                 "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
-                .addFilterAfter(new TokenRevocationFilter(revocationService), BearerTokenAuthenticationFilter.class);
+                .addFilterAfter(new TokenRevocationFilter(revocationService), BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new RateLimitFilter(perMinute, burst), TokenRevocationFilter.class);
         return http.build();
     }
 

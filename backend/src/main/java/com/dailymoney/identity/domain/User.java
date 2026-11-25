@@ -61,6 +61,9 @@ public class User {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    @Column(name = "upi_id")
+    private String upiId;
+
     protected User() {
     }
 
@@ -107,6 +110,7 @@ public class User {
         this.email = null;
         this.phoneE164 = null;
         this.displayName = "Former member";
+        this.upiId = null;
         revokeTokens(now);
     }
 
@@ -141,6 +145,15 @@ public class User {
 
     public String[] getAuthProviders() {
         return authProviders.clone();
+    }
+
+    public String getUpiId() {
+        return upiId;
+    }
+
+    public void changeUpiId(String upiId, Instant now) {
+        this.upiId = upiId;
+        this.updatedAt = now;
     }
 
     public String getDisplayName() {

@@ -107,4 +107,21 @@ class AuthUseCasesTest {
         assertEquals(false, ok)
         assertEquals(listOf("backend.everywhere"), calls)
     }
+
+    @Test
+    fun `deleting the account clears the phone only once the server agreed`() = runTest {
+        var answer: DeleteAccountResult = DeleteAccountResult.TransferOwnershipFirst("Trip")
+        val deletion = object : AccountDeletion {
+            override suspend fun delete(): DeleteAccountResult = answer.also { calls += "delete" }
+        }
+        val useCase = DeleteAccountUseCase(deletion, auth, backend, wiper)
+
+        assertEquals(DeleteAccountResult.TransferOwnershipFirst("Trip"), useCase())
+        assertEquals(listOf("delete"), calls)
+
+        calls.clear()
+        answer = DeleteAccountResult.Deleted
+        assertEquals(DeleteAccountResult.Deleted, useCase())
+        assertEquals(listOf("delete", "backend.unregister", "auth.signOut", "wipe"), calls)
+    }
 }

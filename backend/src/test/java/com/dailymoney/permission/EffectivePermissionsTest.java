@@ -35,8 +35,9 @@ class EffectivePermissionsTest {
     }
 
     @Test
-    void ownerDefaultsHaveNoEditAllPermissionAndApprovalStartsOff() {
-        assertThat(SystemRole.OWNER.defaults()).doesNotContain(Permission.EXPENSE_APPROVE);
+    void nobodyCanEditAllAndOnlyOwnersApproveByDefault() {
+        assertThat(SystemRole.OWNER.defaults()).contains(Permission.EXPENSE_APPROVE);
+        assertThat(SystemRole.ADMIN.defaults()).doesNotContain(Permission.EXPENSE_APPROVE);
         assertThat(EnumSet.allOf(Permission.class).stream().map(Enum::name)).doesNotContain("EXPENSE_EDIT_ALL");
     }
 }

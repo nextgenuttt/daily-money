@@ -24,6 +24,7 @@ dependencies {
     implementation(libs.androidx.exifinterface)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.retrofit)
+    implementation(libs.mlkit.text.recognition)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.sqlite)

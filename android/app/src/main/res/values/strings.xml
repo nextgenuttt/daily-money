@@ -9,4 +9,5 @@
     <string name="nav_money">Money</string>
     <string name="nav_planner">Planner</string>
     <string name="nav_groups">Groups</string>
+    <string name="share_add_transaction">Add to Daily Money</string>
 </resources>

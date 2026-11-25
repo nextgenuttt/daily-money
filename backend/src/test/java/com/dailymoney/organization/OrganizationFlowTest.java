@@ -218,6 +218,30 @@ class OrganizationFlowTest extends IntegrationTest {
     }
 
     @Test
+    void deletingAnAccountLeavesGroupsButOwnersHandOverFirst() throws Exception {
+        TestUser owner = newUser("Owner");
+        TestUser friend = newUser("Friend");
+        String shared = createOrg(owner, "Trip");
+        String solo = createOrg(owner, "Just me");
+        join(friend, invite(owner, shared, "MEMBER", null, 1));
+
+        mvc.perform(delete("/api/v1/me").with(owner.auth()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("TRANSFER_OWNERSHIP_FIRST"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Trip")));
+        mvc.perform(get("/api/v1/organizations/" + solo).with(owner.auth())).andExpect(status().isOk());
+
+        mvc.perform(withJson(post("/api/v1/organizations/" + shared + "/transfer-ownership").with(owner.auth()), Map.of("userId", userId(friend))))
+                .andExpect(status().isNoContent());
+        mvc.perform(delete("/api/v1/me").with(owner.auth())).andExpect(status().isNoContent());
+
+        assertThat(jdbc.queryForObject("SELECT deleted_at IS NOT NULL FROM organizations WHERE id = ?::uuid", Boolean.class, solo)).isTrue();
+        mvc.perform(get("/api/v1/organizations/" + shared + "/members").with(friend.auth()))
+                .andExpect(jsonPath("$.length()").value(1));
+        assertThat(jdbc.queryForObject("SELECT display_name FROM users WHERE firebase_uid = ?", String.class, owner.uid())).isEqualTo("Former member");
+    }
+
+    @Test
     void alreadyMemberAndValidation() throws Exception {
         TestUser owner = newUser("Owner");
         String orgId = createOrg(owner, "G");

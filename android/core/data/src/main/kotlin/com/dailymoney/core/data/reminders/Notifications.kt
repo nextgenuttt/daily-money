@@ -26,6 +26,9 @@ object Channels {
     const val PAYMENTS = "payments"
     const val EVENTS = "events"
     const val BUDGET = "budget"
+    const val APPROVALS = "approvals"
+    const val GROUP_ACTIVITY = "group_activity"
+    const val MESSAGES = "messages"
 
     fun ensure(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -34,6 +37,9 @@ object Channels {
             NotificationChannel(REMINDERS, context.getString(R.string.channel_reminders), NotificationManager.IMPORTANCE_HIGH),
             NotificationChannel(EVENTS, context.getString(R.string.channel_events), NotificationManager.IMPORTANCE_DEFAULT),
             NotificationChannel(BUDGET, context.getString(R.string.channel_budget), NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(APPROVALS, context.getString(R.string.channel_approvals), NotificationManager.IMPORTANCE_HIGH),
+            NotificationChannel(MESSAGES, context.getString(R.string.channel_messages), NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(GROUP_ACTIVITY, context.getString(R.string.channel_group_activity), NotificationManager.IMPORTANCE_LOW),
         ).forEach {
             // Amounts are hidden on the lock screen; the public version only says what kind of alert it is.
             it.lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
@@ -53,6 +59,19 @@ object AppLinks {
     const val OPEN_BUDGETS = "budgets"
     const val OPEN_TODO = "todo"
     const val EXTRA_TODO_ID = "dm_todo_id"
+    const val OPEN_NOTIFICATION = "notification"
+    const val EXTRA_NOTIFICATION_ID = "dm_notification_id"
+
+    /** [id] null opens the notification centre itself (the evening summary). */
+    fun openNotification(context: Context, id: String?): PendingIntent {
+        val intent = (context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent())
+            .setPackage(context.packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .setData(Uri.parse("dailymoney://open/$OPEN_NOTIFICATION/${Uri.encode(id ?: "all")}"))
+            .putExtra(EXTRA_OPEN, OPEN_NOTIFICATION)
+        id?.let { intent.putExtra(EXTRA_NOTIFICATION_ID, it) }
+        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
 
     fun open(context: Context, what: String, reminderId: String? = null, epochDay: Long? = null, requestKey: String): PendingIntent {
         val intent = (context.packageManager.getLaunchIntentForPackage(context.packageName) ?: Intent())

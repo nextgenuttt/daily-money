@@ -18,7 +18,15 @@ import com.dailymoney.core.domain.groups.PermissionEffect
 import com.dailymoney.core.domain.groups.PermissionMatrix
 import com.dailymoney.core.domain.groups.RolePermissions
 import com.dailymoney.core.network.GroupsApi
+import com.dailymoney.core.domain.sharing.ApprovalMode
+import com.dailymoney.core.domain.sharing.ApprovalPolicy
+import com.dailymoney.core.domain.sharing.ApprovalRule
+import com.dailymoney.core.domain.sharing.RuleType
+import com.dailymoney.core.domain.sharing.SyncScheduler
+import com.dailymoney.core.network.model.ApprovalPolicyDto
+import com.dailymoney.core.network.model.ApprovalRuleDto
 import com.dailymoney.core.network.model.CreateGroupDto
+import com.dailymoney.core.network.model.DecisionRequestDto
 import com.dailymoney.core.network.model.GroupDetailDto
 import com.dailymoney.core.network.model.GroupSummaryDto
 import com.dailymoney.core.network.model.InvitationDto
@@ -41,14 +49,15 @@ import retrofit2.HttpException
 import retrofit2.Response
 
 /**
- * Groups live on the server (shared with other people). Phase 7 adds a local copy and live updates;
- * until then every screen loads fresh data and shows a clear offline state.
+ * Group management lives on the server (shared with other people), so these screens load fresh data and
+ * show a clear offline state. Group expenses themselves are synced (see sync package).
  */
 @Singleton
 class RemoteGroupRepository @Inject constructor(
     private val api: GroupsApi,
     private val config: AppConfig,
     private val json: Json,
+    private val sync: SyncScheduler,
 ) : GroupRepository {
 
     override suspend fun list() = call { api.list().map { it.toDomain() } }
@@ -109,6 +118,42 @@ class RemoteGroupRepository @Inject constructor(
 
     override suspend fun setOverrides(id: String, userId: String, overrides: Map<String, PermissionEffect>) =
         unit { api.setOverrides(id, userId, OverridesDto(overrides.mapValues { it.value.name })) }
+
+    override suspend fun approvalPolicy(id: String) = call { api.approvalPolicy(id).toDomain() }
+
+    override suspend fun saveApprovalPolicy(id: String, policy: ApprovalPolicy) = call {
+        api.saveApprovalPolicy(id, policy.toDto()).toDomain().also { sync.requestSync() }
+    }
+
+    /** The decision shows up everywhere through sync, so pull right after. */
+    override suspend fun approve(expenseId: String, version: Int) =
+        unit { api.approve(expenseId, DecisionRequestDto(version)) }.also { if (it is GroupResult.Ok) sync.requestSync() }
+
+    override suspend fun reject(expenseId: String, version: Int, reason: String) =
+        unit { api.reject(expenseId, DecisionRequestDto(version, reason.trim())) }.also { if (it is GroupResult.Ok) sync.requestSync() }
+
+    private fun ApprovalPolicyDto.toDomain() = ApprovalPolicy(
+        mode = runCatching { ApprovalMode.valueOf(mode) }.getOrDefault(ApprovalMode.INSTANT),
+        allowSelfApproval = allowSelfApproval,
+        requiredApprovals = requiredApprovals,
+        reapproveOnMaterialChange = reapproveOnMaterialChange,
+        approverIds = approverIds.toSet(),
+        rules = rules.mapNotNull { r ->
+            val type = runCatching { RuleType.valueOf(r.type) }.getOrNull() ?: return@mapNotNull null
+            ApprovalRule(type, r.amountMinor, r.categories.orEmpty(), r.userIds.orEmpty(), r.enabled ?: true)
+        },
+        eligibleApprovers = eligibleApprovers.map { it.userId to it.name },
+        canEdit = canEdit,
+    )
+
+    private fun ApprovalPolicy.toDto() = ApprovalPolicyDto(
+        mode = mode.name,
+        allowSelfApproval = allowSelfApproval,
+        requiredApprovals = requiredApprovals,
+        reapproveOnMaterialChange = reapproveOnMaterialChange,
+        approverIds = approverIds.sorted(),
+        rules = rules.map { ApprovalRuleDto(it.type.name, it.amountMinor, it.categories.ifEmpty { null }, it.userIds.ifEmpty { null }, it.enabled) },
+    )
 
     private suspend fun unit(block: suspend () -> Response<Unit>): GroupResult<Unit> = call {
         val response = block()

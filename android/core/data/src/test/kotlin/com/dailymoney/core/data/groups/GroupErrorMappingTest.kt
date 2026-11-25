@@ -1,5 +1,6 @@
 package com.dailymoney.core.data.groups
 
+import com.dailymoney.core.domain.sharing.SyncScheduler
 import com.dailymoney.core.domain.config.AppConfig
 import com.dailymoney.core.domain.groups.GroupError
 import com.dailymoney.core.domain.groups.GroupResult
@@ -19,7 +20,7 @@ class GroupErrorMappingTest {
     } as GroupsApi
 
     private fun repo(apiUrl: String = "https://api.example.com/") =
-        RemoteGroupRepository(unusedApi, AppConfig("a", "1", "", "", apiUrl), Json { ignoreUnknownKeys = true })
+        RemoteGroupRepository(unusedApi, AppConfig("a", "1", "", "", apiUrl), Json { ignoreUnknownKeys = true }, NoSync)
 
     @Test
     fun `problem details codes become domain errors`() {
@@ -46,4 +47,9 @@ class GroupErrorMappingTest {
         assertNull(InviteLinks.tokenFrom("https://evil.example.com/../etc"))
         assertNull(InviteLinks.tokenFrom("short"))
     }
+}
+
+private object NoSync : SyncScheduler {
+    override fun requestSync() = Unit
+    override fun schedulePeriodic() = Unit
 }

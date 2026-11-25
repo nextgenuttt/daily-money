@@ -81,4 +81,40 @@ class MoneyDaoTest {
         assertEquals(0, txns.countForCategory("food"))
         assertEquals(emptyList<TransactionEntity>(), txns.observeRecent(10).first())
     }
+
+    @Test
+    fun `importing the same lines twice adds them once, and deleted imports can come back`() = runTest {
+        val txns = db.transactionDao()
+        val lines = listOf(
+            txn("a", "DEBIT", 100, "acc").copy(source = "STATEMENT_IMPORT", dedupeHash = "h1"),
+            txn("b", "DEBIT", 100, "acc").copy(source = "STATEMENT_IMPORT", dedupeHash = "h2"),
+            txn("c", "DEBIT", 100, "acc").copy(source = "STATEMENT_IMPORT", dedupeHash = "h2"),
+        )
+        assertEquals(2, txns.importAll(lines))
+        assertEquals(0, txns.importAll(lines.map { it.copy(id = it.id + "2") }))
+        assertEquals(setOf("h1", "h2"), txns.importedHashes(listOf("h1", "h2", "h3")).toSet())
+        assertEquals("STATEMENT_IMPORT", txns.get("a")?.source)
+
+        txns.softDelete("a", 5)
+        assertEquals(1, txns.importAll(listOf(lines[0].copy(id = "a3"))))
+    }
+
+    @Test
+    fun `labelled notes skip transfers, blanks and old rows`() = runTest {
+        val txns = db.transactionDao()
+        txns.upsert(txn("1", "DEBIT", 1, "acc", at = 5_000, category = "food").copy(note = "Swiggy"))
+        txns.upsert(txn("2", "TRANSFER", 1, "acc", to = "b", at = 5_000, category = "x").copy(note = "move"))
+        txns.upsert(txn("3", "DEBIT", 1, "acc", at = 5_000, category = "food"))
+        txns.upsert(txn("4", "DEBIT", 1, "acc", at = 10, category = "food").copy(note = "old"))
+        assertEquals(listOf("Swiggy"), txns.labelledNotes(since = 1_000).map { it.note })
+    }
+
+    @Test
+    fun `category rules are kept and removed with their category`() = runTest {
+        val rules = db.categoryRuleDao()
+        rules.upsert(com.dailymoney.core.database.entity.CategoryRuleEntity("r1", "ravi stores", "groceries", 1))
+        rules.upsert(com.dailymoney.core.database.entity.CategoryRuleEntity("r2", "uber", "transport", 1))
+        rules.deleteForCategory("groceries")
+        assertEquals(listOf("uber"), rules.observeAll().first().map { it.pattern })
+    }
 }

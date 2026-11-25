@@ -17,7 +17,9 @@ import com.dailymoney.organization.infra.MembershipRepository;
 import com.dailymoney.organization.infra.RoleRepository;
 import com.dailymoney.permission.PermissionService.Access;
 import com.dailymoney.shared.web.ApiException;
+import com.dailymoney.sync.SyncPoke;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,15 +49,17 @@ public class PermissionAdminService {
     private final MemberPermissionRepository overrides;
     private final AuditService audit;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     public PermissionAdminService(PermissionService permissions, RoleRepository roles, MembershipRepository memberships,
-            MemberPermissionRepository overrides, AuditService audit, Clock clock) {
+            MemberPermissionRepository overrides, AuditService audit, Clock clock, ApplicationEventPublisher events) {
         this.permissions = permissions;
         this.roles = roles;
         this.memberships = memberships;
         this.overrides = overrides;
         this.audit = audit;
         this.clock = clock;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -84,6 +88,7 @@ public class PermissionAdminService {
         // Everyone with this role gets a new permVersion, so cached permissions refresh immediately.
         memberships.bumpPermVersionForRole(roleId);
         audit.record(actor.getId(), orgId, "ROLE", roleId, "PERM_CHANGE", before + "->" + wanted);
+        events.publishEvent(SyncPoke.org(orgId));
     }
 
     @Transactional(readOnly = true)
@@ -119,6 +124,7 @@ public class PermissionAdminService {
         target.membership().bumpPermVersion();
         memberships.save(target.membership());
         audit.record(actor.getId(), orgId, "MEMBER", userId, "PERM_OVERRIDE", wanted.toString());
+        events.publishEvent(SyncPoke.users(userId));
     }
 
     private static void checkCanGrant(Access actor, Set<Permission> grants) {

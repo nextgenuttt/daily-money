@@ -50,6 +50,7 @@ class PostDueRecurringUseCase @Inject constructor(
         occurredAt = date.atTime(LocalTime.NOON).atZone(clock.zone).toInstant(),
         note = note ?: name.takeIf { isSubscription },
         paymentMethod = paymentMethod,
+        source = TransactionSource.RECURRING,
     )
 
     companion object {

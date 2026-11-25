@@ -6,6 +6,7 @@ import com.dailymoney.core.network.BuildConfig
 import com.dailymoney.core.network.DailyMoneyApi
 import com.dailymoney.core.network.FirebaseTokenInterceptor
 import com.dailymoney.core.network.GroupsApi
+import com.dailymoney.core.network.SyncApi
 import com.dailymoney.core.network.TokenRefreshAuthenticator
 import dagger.Module
 import dagger.Provides
@@ -16,6 +17,8 @@ import javax.inject.Singleton
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.CertificatePinner
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -36,12 +39,13 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun okHttp(tokens: AuthTokenProvider): OkHttpClient = OkHttpClient.Builder()
+    fun okHttp(tokens: AuthTokenProvider, config: AppConfig): OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .addInterceptor(FirebaseTokenInterceptor(tokens))
         .authenticator(TokenRefreshAuthenticator(tokens))
         .apply {
+            pinner(config)?.let(::certificatePinner)
             if (BuildConfig.DEBUG) {
                 addInterceptor(HttpLoggingInterceptor().apply {
                     level = HttpLoggingInterceptor.Level.BASIC
@@ -51,9 +55,23 @@ object NetworkModule {
         }
         .build()
 
+    /**
+     * Pins are opt-in (API_CERT_PINS in local.properties) because a wrong or stale pin locks every
+     * installed app out of the server; always ship a backup pin for the next key.
+     */
+    internal fun pinner(config: AppConfig): CertificatePinner? {
+        val host = config.apiBaseUrl.toHttpUrlOrNull()?.host ?: return null
+        if (config.apiCertificatePins.isEmpty()) return null
+        return CertificatePinner.Builder().apply { config.apiCertificatePins.forEach { add(host, it) } }.build()
+    }
+
     @Provides
     @Singleton
     fun groupsApi(retrofit: Retrofit): GroupsApi = retrofit.create(GroupsApi::class.java)
+
+    @Provides
+    @Singleton
+    fun syncApi(retrofit: Retrofit): SyncApi = retrofit.create(SyncApi::class.java)
 
     @Provides
     @Singleton

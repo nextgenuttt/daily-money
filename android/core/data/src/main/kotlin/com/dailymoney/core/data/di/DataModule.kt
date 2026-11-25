@@ -45,7 +45,25 @@ import com.dailymoney.core.domain.auth.BackendSession
 import com.dailymoney.core.domain.auth.LocalDataWiper
 import com.dailymoney.core.domain.auth.PendingChangesRepository
 import com.dailymoney.core.network.AuthTokenProvider
+import com.dailymoney.core.data.notify.RemoteMessageRepository
+import com.dailymoney.core.data.notify.RoomNotificationRepository
+import com.dailymoney.core.data.sync.RemoteSettlementRepository
+import com.dailymoney.core.data.sync.RoomSharedExpenseRepository
+import com.dailymoney.core.data.sync.WorkManagerSync
+import com.dailymoney.core.domain.sharing.MessageRepository
+import com.dailymoney.core.domain.sharing.NotificationRepository
+import com.dailymoney.core.domain.sharing.SettlementRepository
+import com.dailymoney.core.domain.sharing.SharedExpenseRepository
+import com.dailymoney.core.domain.sharing.SyncScheduler
 import com.google.firebase.auth.FirebaseAuth
+import com.dailymoney.core.data.smart.ContentStatementReader
+import com.dailymoney.core.data.smart.MlKitReceiptReader
+import com.dailymoney.core.data.smart.RoomCategoryRuleRepository
+import com.dailymoney.core.domain.smart.CategoryRuleRepository
+import com.dailymoney.core.domain.smart.ReceiptTextReader
+import com.dailymoney.core.domain.smart.StatementFileReader
+import com.dailymoney.core.data.session.AccountDeletionImpl
+import com.dailymoney.core.domain.auth.AccountDeletion
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -122,6 +140,33 @@ abstract class DataModule {
 
     @Binds
     abstract fun backupService(impl: BackupManager): BackupService
+
+    @Binds
+    abstract fun sharedExpenseRepository(impl: RoomSharedExpenseRepository): SharedExpenseRepository
+
+    @Binds
+    abstract fun syncScheduler(impl: WorkManagerSync): SyncScheduler
+
+    @Binds
+    abstract fun settlementRepository(impl: RemoteSettlementRepository): SettlementRepository
+
+    @Binds
+    abstract fun notificationRepository(impl: RoomNotificationRepository): NotificationRepository
+
+    @Binds
+    abstract fun messageRepository(impl: RemoteMessageRepository): MessageRepository
+
+    @Binds
+    abstract fun accountDeletion(impl: AccountDeletionImpl): AccountDeletion
+
+    @Binds
+    abstract fun receiptTextReader(impl: MlKitReceiptReader): ReceiptTextReader
+
+    @Binds
+    abstract fun statementFileReader(impl: ContentStatementReader): StatementFileReader
+
+    @Binds
+    abstract fun categoryRuleRepository(impl: RoomCategoryRuleRepository): CategoryRuleRepository
 
     companion object {
         @Provides

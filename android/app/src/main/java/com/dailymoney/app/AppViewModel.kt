@@ -1,5 +1,6 @@
 package com.dailymoney.app
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import com.dailymoney.core.data.reminders.AppLinks
@@ -21,6 +22,7 @@ import com.dailymoney.core.domain.groups.InviteLinks
 import com.dailymoney.core.domain.money.BackgroundJobs
 import com.dailymoney.core.domain.money.EnsureDefaultDataUseCase
 import com.dailymoney.core.domain.money.PostDueRecurringUseCase
+import com.dailymoney.core.domain.sharing.SyncScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +41,10 @@ sealed interface OpenRequest {
     data object Budgets : OpenRequest
     data class Todo(val id: String) : OpenRequest
     data class Invite(val token: String) : OpenRequest
+    /** [id] null: the notification list itself. */
+    data class Notification(val id: String?) : OpenRequest
+    /** A message shared into the app, to fill a new transaction. */
+    data class AddFromText(val text: String) : OpenRequest
 }
 
 @OptIn(FlowPreview::class)
@@ -53,6 +59,7 @@ class AppViewModel @Inject constructor(
     private val reminderScheduler: ReminderScheduler,
     private val observeBudgetProgress: ObserveBudgetProgressUseCase,
     private val checkBudgetAlerts: CheckBudgetAlertsUseCase,
+    private val sync: SyncScheduler,
 ) : ViewModel() {
 
     val session: StateFlow<SessionState> = observeSession()
@@ -89,11 +96,18 @@ class AppViewModel @Inject constructor(
                         reminderScheduler.reschedule()
                         watchBudgets()
                         backend.bootstrap()
+                        sync.schedulePeriodic()
+                        sync.requestSync()
                     }
                     else -> Unit
                 }
             }
         }
+    }
+
+    /** Each return to the app pulls group changes that arrived while it was closed. */
+    fun onForeground() {
+        if (session.value is SessionState.SignedIn) sync.requestSync()
     }
 
     /** Firebase email action link: https://<host>/auth/action?mode=…&oobCode=… */
@@ -140,8 +154,16 @@ class AppViewModel @Inject constructor(
             AppLinks.OPEN_SUBSCRIPTIONS -> OpenRequest.Subscriptions
             AppLinks.OPEN_BUDGETS -> OpenRequest.Budgets
             AppLinks.OPEN_TODO -> extras.getString(AppLinks.EXTRA_TODO_ID)?.let { OpenRequest.Todo(it) }
+            AppLinks.OPEN_NOTIFICATION -> OpenRequest.Notification(extras.getString(AppLinks.EXTRA_NOTIFICATION_ID))
             else -> null
         }
+    }
+
+    /** Text shared from another app (a bank SMS, a UPI receipt). Only fills a form; nothing is saved without the user. */
+    fun handleShare(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND || intent.type != "text/plain") return
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim()?.take(MAX_SHARED_TEXT)?.takeIf { it.isNotEmpty() } ?: return
+        _openRequest.value = OpenRequest.AddFromText(text)
     }
 
     fun openHandled() {
@@ -154,5 +176,10 @@ class AppViewModel @Inject constructor(
 
     fun linkMessageShown() {
         _linkMessage.value = null
+    }
+
+    private companion object {
+        /** Bank messages are short; this keeps a pasted essay out of the navigation route. */
+        const val MAX_SHARED_TEXT = 1000
     }
 }

@@ -1245,6 +1245,136 @@ flowchart TB
 - **Restore:** refuses backups from a newer schema; replaces all listed tables in one transaction
   (all or nothing). Offered from Settings and from the sign-out dialog ("Back up first").
 
+### 12.y Shared expenses & sync (built, Phase 7)
+
+- **Scope:** only expenses shared with a group sync. Personal rows never leave the phone. Server table
+  `transactions` holds group rows (`ORGANIZATION` or `SELECTED_MEMBERS`, never `PERSONAL`); the account stays
+  on the creator's phone and the category travels as text (`category_name`, `category_icon`).
+- **Server:** `POST /sync/push` (≤ 100 ops, each in its own DB transaction: idempotency → authorize →
+  version check → apply → audit → tombstones → FCM poke after commit) and `GET /sync/pull?cursor&limit`.
+  One global `sync_seq`; writers take a transaction-scoped advisory lock so sequence order = commit order and
+  a cursor can never skip an uncommitted change. Pull returns `orgs` (my groups + `canView/canAdd/canReport`),
+  then changes in seq order; rows I can't see are skipped. `sync_revocations` holds per-person `REVOKE`
+  tombstones when visibility narrows. Leaving, removal, deleted groups and lost `EXPENSE_VIEW` are handled by
+  the `orgs` list (the phone purges those groups) instead of one tombstone per row.
+- **Phone:** the outbox row only marks "this transaction changed"; push sends the row's current state
+  (several offline edits = one op), `baseVersion` = `serverVersion`. Results: `APPLIED` → store version,
+  `CONFLICT` → rebase on the server version and resend (only the creator edits, so the latest edit wins),
+  `GONE` → becomes personal, `REJECTED` → marked failed. Other people's rows live in `shared_expenses`,
+  separate from `transactions`, so they never touch my balances, budgets or reports. A newly visible group
+  restarts the pull from cursor 0. Once on the server an entry can't move group or become personal (delete it).
+- **Triggers:** save/delete (2 s debounce, `REPLACE`), app foreground, FCM data message `{type:SYNC}`
+  (collapse key `sync`), periodic 6 h; WorkManager with a network constraint and exponential backoff.
+- **Dashboard:** computed on the phone from the synced rows the person can see (month total, by category,
+  by person), shown to members with `EXPENSE_REPORT_VIEW`. The server-side `monthly_aggregates` table (§4.10)
+  is deferred until groups are large enough to need it.
+
+### 12.z Splits & settlements (built, Phase 9)
+
+- **Splits** travel inside the shared expense (`payload.split = {method, entries[{userId, value}]}`), so they
+  work offline. The phone previews with the Kotlin `SplitCalculator`; the server recalculates with the Java
+  port and stores `expense_splits`. `docs/split-test-vectors.json` is run by both test suites. A deferred
+  constraint trigger refuses any commit where a split doesn't add up to its expense. Only expenses (DEBIT)
+  split; everyone in a split must be able to see the expense. Adding or changing a split needs
+  `EXPENSE_SPLIT_MANAGE` (now on by default for Members); keeping an existing split unchanged doesn't.
+- **Balances** are per person and computed on the phone: Σ shares of split expenses I can see − confirmed
+  settlements between us. Group-wide "who owes whom" is not shown, because it would need expenses the
+  viewer isn't allowed to see. Debt simplification is not built.
+- **Settlements** (`POST /organizations/{id}/settlements`, `/settlements/{id}/confirm|cancel`) need a
+  connection. Payer records → `REQUESTED` → only the receiver confirms; a receiver recording money they got is
+  `CONFIRMED` at once. A UPI app return is never proof. Confirmed ones are history. They reach the two people
+  through pull (`entityType: SETTLEMENT`). Simplification vs §4.4: no `settled_minor` / allocations table;
+  per-person balance is enough for the UI and can't drift.
+- **Pull** now also returns `me`, `myUpiId` and each group's `members` (name, optional UPI ID), so member
+  pickers work offline. `PUT /me/upi` sets the UPI ID (`name@bank`), shown only to people in the same groups.
+  Room v7 resets the cursor once so older rows get creators and splits.
+
+### 12.w Approvals (built, Phase 8)
+
+- **Policy** per group (`GET/PUT /organizations/{id}/approval-policy`, one combined body: mode, approvers,
+  required approvals 1–5, self-approval, re-approval, rules). No row = INSTANT. Rules: `AMOUNT_GTE`,
+  `CATEGORY_IN` (category names, case-insensitive, since categories live on phones), `CREATOR_IN`.
+  The spec's "selected member" condition is not built. Approvers must currently hold `EXPENSE_APPROVE`
+  (now on by default for Owners; Admins stay off). Every member can read the policy; changing it needs
+  `ORGANIZATION_SETTINGS_MANAGE`.
+- **Status** is decided on the server at push (§7 evaluate). Edits to pending/rejected expenses resubmit
+  them; an approved one returns to pending only after a material change (amount, date, category, or
+  widened visibility) when re-approval is on and the policy would require approval. Pending rows are
+  visible only to the creator and approvers, rejected ones only to the creator; every status change sends
+  REVOKE tombstones to people who lose sight of a row.
+- **Decisions** (`POST /transactions/{id}/approve|reject {version, reason}`) are tied to the version (a stale
+  version gets `CHANGED`), one per approver, reason required to reject; enough approvals → APPROVED, any
+  rejection → REJECTED. History (`expense_approvals`) is sent only to the creator and approvers.
+- **Policy changes** apply to waiting expenses: switching to INSTANT approves them; changed approvers lose
+  or receive them. Only APPROVED expenses count in group totals and balances; the dashboard shows the
+  pending amount separately.
+- Not built yet: notifying approvers or the owner (Phase 10).
+
+### 12.v Messages & notifications (built, Phase 10)
+
+- **Notifications** (`notifications` table, one row per person, `UNIQUE(user_id, dedupe_key)`) are created in
+  the same transaction as the change that causes them and reach phones through pull (`entityType:
+  NOTIFICATION`) after the usual FCM poke, one poke per change. Types: `APPROVAL_REQUESTED` (approvers),
+  `EXPENSE_APPROVED|REJECTED` (creator), `EXPENSE_ADDED` (rest of the audience, when it becomes visible),
+  `SPLIT_SHARE` (people in the split, with their share), `SETTLEMENT_REQUESTED|RECORDED|CONFIRMED|CANCELLED`
+  (the other person), `MESSAGE` (creator, earlier writers, split members). Every recipient is re-checked:
+  can see the expense and holds `EXPENSE_NOTIFICATION_RECEIVE` (approvers: `EXPENSE_APPROVE`). Edits to an
+  approved expense stay quiet. `PUT /notifications/read {ids}` (empty = all); the phone marks read at
+  once and a later pull never makes it unread again.
+- **Text is built on the phone** from type + placeholders (actor, group, amount, category, share, reason,
+  preview); the push carries nothing. Lock screen shows only "New update in a group". Channels:
+  approvals (high), payments (high), messages, group activity (low). Notifications older than 3 days
+  never pop.
+- **Preferences are per phone** (not synced): categories on/off, muted groups, quiet hours, evening
+  summary at 20:00 (WorkManager). The LLD's server-side `notification_preferences` and
+  `notification_deliveries` are not built: the server never pushes content, so filtering on the phone is
+  enough.
+- **Messages** (`expense_messages`, `message_receipts`): `GET/POST /transactions/{id}/messages`
+  (client id = idempotent, `parentId` for replies), `POST …/messages/read`, `DELETE /messages/{id}` (own
+  only, leaves a "deleted" placeholder). Same visibility as the expense; read needs
+  `EXPENSE_MESSAGE_RECEIVE`, write `EXPENSE_MESSAGE_SEND`, reply `EXPENSE_MESSAGE_REPLY`. Threads load live.
+- **Not built:** SMS (needs a paid provider and DLT sender registration in India; `EXPENSE_SMS_*` stay
+  system-disabled), email, message attachments, telling the owner when a group has pending expenses but
+  no approvers left.
+
+### 12.u Smart entry (built, Phase 11)
+
+All on the phone; nothing here touches the server (personal transactions never leave the device).
+Room v10 adds `transactions.source` (`MANUAL|RECURRING|OCR|STATEMENT_IMPORT|SMS`), `transactions.dedupeHash`
+(indexed) and `category_rules(id, pattern, categoryId, createdAt)`; rules are in the backup.
+
+- **Receipt scan**: ML Kit Text Recognition (Play services model since Phase 12; runs on the phone, the photo
+  never leaves it). Lines are regrouped into visual rows (label and amount often come back as separate
+  blocks), then `ReceiptParser` picks the total by label priority (grand total › net payable › … › total,
+  ignoring sub total / tax / savings lines unless "incl."), falls back to the largest amount with paise,
+  reads the first plausible date (day-first, not future, < 2 years old) and the shop name from the first
+  lines. Runs when a photo receipt is added to a new, still empty transaction, or from the scan button;
+  it only fills empty fields and says so ("please check").
+- **Statement import** (Money → Import statement): CSV only (UTF-8 or Windows-1252, ≤ 5 MB, `,` `;` tab
+  `|`). Header row and columns are found by keyword (date / narration / withdrawal / deposit / amount /
+  Dr-Cr) so HDFC, ICICI, SBI, Axis, Kotak and most exports work without templates; otherwise the user
+  picks the columns. Date format = the pattern that reads the most cells (day-first wins ties). Each line
+  gets `sha256(account|date|type|amount|words|occurrence)`, so re-importing a file adds nothing while two
+  identical lines in one statement stay two; rows land at midday. Lines matching a hand-entered
+  transaction (same account, type, amount, ±2 days) are flagged and left unticked. Excel/PDF statements
+  are not read.
+- **Categories**: `Categorizer` = user rules (whole-word phrase, longest first) › the user's own most
+  frequent choice for the same merchant key over the last 365 days › built-in Indian merchant keywords
+  mapped to the default categories. Used to pre-fill imports, scans and messages, and offered as a
+  "Suggested" chip while typing a note. The LLD's opt-in cloud categorization is not built.
+- **Bank / UPI messages**: no `READ_SMS`/`RECEIVE_SMS` (Play restricts them; a declaration would be
+  needed). Instead the app is a share target for `text/plain` (≤ 1000 chars): `BankSmsParser` reads
+  amount, debit/credit, payee/payer, date and account digits, rejects OTPs, requests, reminders and
+  failed payments, and opens a pre-filled new transaction that the user saves.
+
+### 12.t Release hardening (built, Phase 12)
+
+Details and Play Console answers in `docs/06-PLAY-RELEASE.md`. Room v11 adds `transactions.pushAttempted`:
+a row sent at least once (reply possibly lost) sends `DELETE` when deleted or made personal, instead of being
+dropped. The push/pull loop lives in `SyncRunner` (testable with a fake server; `SyncChaosTest`). `DELETE /me`
+now leaves every group first (`TRANSFER_OWNERSHIP_FIRST` → 409 listing the groups) and deletes notifications.
+ML Kit OCR uses the Play services model (§12.u's size note no longer applies).
+
 Deep links: `dmapp://transaction/{id}`, `dmapp://approval/{id}`, `dmapp://reminder/{id}/{occursAt}`
 used by notifications (each re-checks access before rendering).
 

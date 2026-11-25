@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -53,6 +54,11 @@ public class MeController {
         accounts.removeDevice(FirebasePrincipal.from(jwt), deviceId);
     }
 
+    @PutMapping("/me/upi")
+    public ProfileResponse changeUpiId(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody UpiRequest request) {
+        return ProfileResponse.of(accounts.changeUpiId(FirebasePrincipal.from(jwt), request.upiId()));
+    }
+
     @PostMapping("/auth/logout-all")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logoutAll(@AuthenticationPrincipal Jwt jwt) {
@@ -78,12 +84,15 @@ public class MeController {
         }
     }
 
+    public record UpiRequest(@Size(max = 100) String upiId) {
+    }
+
     public record ProfileResponse(UUID id, String email, boolean emailVerified, String displayName,
-            List<String> authProviders, String defaultCurrency, String timeZone, Instant createdAt) {
+            List<String> authProviders, String defaultCurrency, String timeZone, String upiId, Instant createdAt) {
 
         static ProfileResponse of(User u) {
             return new ProfileResponse(u.getId(), u.getEmail(), u.isEmailVerified(), u.getDisplayName(),
-                    List.of(u.getAuthProviders()), u.getDefaultCurrency(), u.getTimeZone(), u.getCreatedAt());
+                    List.of(u.getAuthProviders()), u.getDefaultCurrency(), u.getTimeZone(), u.getUpiId(), u.getCreatedAt());
         }
     }
 

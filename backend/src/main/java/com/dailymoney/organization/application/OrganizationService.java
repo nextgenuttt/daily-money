@@ -26,7 +26,10 @@ import com.dailymoney.permission.PermissionService.Access;
 import com.dailymoney.permission.SystemRole;
 import com.dailymoney.shared.id.UuidV7;
 import com.dailymoney.shared.web.ApiException;
+import com.dailymoney.sync.SyncPoke;
 
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,10 +56,11 @@ public class OrganizationService {
     private final AuditService audit;
     private final CurrentUserService users;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     public OrganizationService(OrganizationRepository organizations, RoleRepository roles, MembershipRepository memberships,
             InvitationRepository invitations, PermissionService permissions, AuditService audit,
-            CurrentUserService users, Clock clock) {
+            CurrentUserService users, Clock clock, ApplicationEventPublisher events) {
         this.organizations = organizations;
         this.roles = roles;
         this.memberships = memberships;
@@ -65,6 +69,7 @@ public class OrganizationService {
         this.audit = audit;
         this.users = users;
         this.clock = clock;
+        this.events = events;
     }
 
     /** The creator becomes Owner; the four system roles are seeded with the default matrix (LLD §5.3). */
@@ -123,6 +128,7 @@ public class OrganizationService {
         org.delete(now);
         invitations.pending(orgId, now).forEach(i -> i.revoke());
         audit.record(actor.getId(), orgId, "ORGANIZATION", orgId, "ORG_DELETE", null);
+        events.publishEvent(SyncPoke.org(orgId));
     }
 
     @Transactional(readOnly = true)
@@ -154,6 +160,7 @@ public class OrganizationService {
         OrgRole role = roles.findByOrgIdAndCode(orgId, wanted.name()).orElseThrow();
         target.changeRole(role.getId());
         audit.record(actor.getId(), orgId, "MEMBER", userId, "ROLE_CHANGE", current.getCode() + "->" + role.getCode());
+        events.publishEvent(SyncPoke.users(userId));
     }
 
     @Transactional
@@ -164,6 +171,7 @@ public class OrganizationService {
         guardTarget(access, roles.findById(target.getRoleId()).orElseThrow());
         target.end(Membership.Status.REMOVED, clock.instant());
         audit.record(actor.getId(), orgId, "MEMBER", userId, "MEMBER_REMOVE", null);
+        events.publishEvent(SyncPoke.users(userId));
     }
 
     /** The owner must hand over first, unless they are the last member (then the group is deleted). */
@@ -180,6 +188,28 @@ public class OrganizationService {
         }
         access.membership().end(Membership.Status.LEFT, now);
         audit.record(actor.getId(), orgId, "MEMBER", actor.getId(), "MEMBER_LEAVE", null);
+        events.publishEvent(SyncPoke.users(actor.getId()));
+    }
+
+    /**
+     * Account deletion: leaves every group. An owner must hand a group with other members to someone
+     * first (nothing changes until all such groups are handled); a group they're alone in is deleted.
+     */
+    @Transactional
+    public void leaveAllForDeletion(User user) {
+        List<Membership> mine = memberships.activeForUser(user.getId());
+        String ownerRole = SystemRole.OWNER.name();
+        List<String> blocking = mine.stream()
+                .filter(m -> ownerRole.equals(roles.findById(m.getRoleId()).map(OrgRole::getCode).orElse(null)))
+                .filter(m -> memberships.countActive(m.getOrgId()) > 1)
+                .map(m -> organizations.findById(m.getOrgId()).map(Organization::getName).orElse("?"))
+                .sorted()
+                .toList();
+        if (!blocking.isEmpty()) {
+            throw new ApiException(HttpStatus.CONFLICT, "TRANSFER_OWNERSHIP_FIRST",
+                    "Make someone else the owner first: " + String.join(", ", blocking));
+        }
+        mine.forEach(m -> leave(user, m.getOrgId()));
     }
 
     @Transactional
@@ -191,6 +221,7 @@ public class OrganizationService {
         target.changeRole(roles.findByOrgIdAndCode(orgId, SystemRole.OWNER.name()).orElseThrow().getId());
         access.membership().changeRole(roles.findByOrgIdAndCode(orgId, SystemRole.ADMIN.name()).orElseThrow().getId());
         audit.record(actor.getId(), orgId, "MEMBER", newOwnerId, "OWNER_TRANSFER", null);
+        events.publishEvent(SyncPoke.users(actor.getId(), newOwnerId));
     }
 
     static SystemRole parseAssignable(String code) {

@@ -28,8 +28,10 @@ import com.dailymoney.permission.PermissionService.Access;
 import com.dailymoney.permission.SystemRole;
 import com.dailymoney.shared.id.UuidV7;
 import com.dailymoney.shared.web.ApiException;
+import com.dailymoney.sync.SyncPoke;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,10 +58,11 @@ public class InvitationService {
     private final AuditService audit;
     private final CurrentUserService users;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     public InvitationService(InvitationRepository invitations, OrganizationRepository organizations, RoleRepository roles,
             MembershipRepository memberships, PermissionService permissions, AuditService audit,
-            CurrentUserService users, Clock clock) {
+            CurrentUserService users, Clock clock, ApplicationEventPublisher events) {
         this.invitations = invitations;
         this.organizations = organizations;
         this.roles = roles;
@@ -68,6 +71,7 @@ public class InvitationService {
         this.audit = audit;
         this.users = users;
         this.clock = clock;
+        this.events = events;
     }
 
     /** Returns the plain token once; only its hash is stored. Admin invitations need the owner. */
@@ -137,6 +141,7 @@ public class InvitationService {
         }
         invitation.use();
         audit.record(actor.getId(), org.getId(), "MEMBER", actor.getId(), "MEMBER_JOIN", invitation.getId().toString());
+        events.publishEvent(SyncPoke.users(actor.getId()));
         return org;
     }
 

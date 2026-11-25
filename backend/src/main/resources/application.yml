@@ -28,11 +28,18 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
 
 app:
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:set-firebase-project-id}
     service-account-file: ${FIREBASE_SERVICE_ACCOUNT_FILE:}
+  rate-limit:
+    per-minute: ${RATE_LIMIT_PER_MINUTE:240}
+    burst: ${RATE_LIMIT_BURST:120}
   invite:
     link-base: ${INVITE_LINK_BASE:https://dailymoney-app.web.app/invite/}
   supabase:
@@ -46,5 +53,9 @@ management:
         include: health
 
 springdoc:
+  # Off in production; set API_DOCS_ENABLED=true locally to browse /swagger-ui.html.
   api-docs:
     path: /v3/api-docs
+    enabled: ${API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:false}

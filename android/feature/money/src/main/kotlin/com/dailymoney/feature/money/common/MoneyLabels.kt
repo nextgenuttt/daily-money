@@ -79,6 +79,8 @@ fun TransactionError.message(): String = stringResource(
         TransactionError.CATEGORY_REQUIRED -> R.string.edit_err_category
         TransactionError.SAME_ACCOUNT -> R.string.edit_err_same_account
         TransactionError.NOTE_TOO_LONG -> R.string.edit_err_note
+        TransactionError.MEMBERS_REQUIRED -> R.string.edit_err_members
+        TransactionError.SPLIT_INVALID -> R.string.edit_err_split
     },
 )
 

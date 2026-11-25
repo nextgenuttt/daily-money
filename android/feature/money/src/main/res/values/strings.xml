@@ -224,4 +224,90 @@
         <item quantity="other">Saved %1$d transactions.</item>
     </plurals>
     <string name="export_failed">Couldn\'t save the file. Please try again.</string>
+    <string name="edit_err_members">Choose at least one person</string>
+    <string name="edit_share_title">Share with a group</string>
+    <string name="edit_share_none">Only me</string>
+    <string name="edit_share_everyone">Everyone in the group</string>
+    <string name="edit_share_selected">Selected people</string>
+    <string name="edit_share_locked">Shared with %1$s. To stop sharing, delete this entry.</string>
+    <string name="edit_share_unknown_group">a group you\'re no longer in</string>
+    <string name="edit_share_no_members">Nobody else is in this group yet, or it hasn\'t synced to this phone. Connect to the internet to see its members.</string>
+    <string name="edit_share_hint">The group sees the amount, category, date and note, not your account.</string>
+    <string name="edit_share_pending">Waiting to reach the group. It will go out when you\'re online.</string>
+    <string name="edit_share_failed">Couldn\'t share this. You may no longer be allowed to add to this group.</string>
+    <string name="edit_err_split">Fix the split so it adds up</string>
+    <string name="split_title">Split the cost</string>
+    <string name="split_off_hint">Off: the group sees it, nobody owes anything.</string>
+    <string name="split_equal">Equally</string>
+    <string name="split_percent">By %</string>
+    <string name="split_amount">By amount</string>
+    <string name="split_shares">By shares</string>
+    <string name="split_you">You</string>
+    <string name="split_value_percent">%</string>
+    <string name="split_value_shares">Shares</string>
+    <string name="split_value_amount">Amount</string>
+    <string name="split_problem_nobody">Choose who shares the cost.</string>
+    <string name="split_problem_too_many">Too many people in the split.</string>
+    <string name="split_problem_not_positive">Every value must be more than zero.</string>
+    <string name="split_problem_percent">The percentages must add up to 100.</string>
+    <string name="split_problem_amount">The amounts must add up to the total.</string>
+    <string name="split_no_permission">Your role in this group can\'t split expenses.</string>
+    <string name="edit_share_awaiting_approval">Waiting for approval. The group sees it once it\'s approved.</string>
+    <string name="edit_share_rejected">Rejected by an approver. Fix it and save to send it again; see the reason in the group.</string>
+
+    <!-- Phase 11: smart entry -->
+    <string name="scan_receipt">Scan receipt</string>
+    <string name="scan_reading">Reading the receipt…</string>
+    <string name="scan_filled">Filled in from your receipt. Please check the amount and date.</string>
+    <string name="scan_unreadable">Couldn\'t read a total on this receipt. Please fill it in.</string>
+    <string name="message_filled">Filled in from the message. Please check before saving.</string>
+    <string name="message_unreadable">That message doesn\'t look like a payment. Please fill it in.</string>
+    <string name="category_suggested">Suggested: %1$s</string>
+    <string name="import_title">Import statement</string>
+    <string name="import_pick_title">Import a bank statement</string>
+    <string name="import_pick_body">Download your statement as a CSV file from your bank\'s website or app, then pick it here. You\'ll see every line before anything is added.</string>
+    <string name="import_pick">Choose CSV file</string>
+    <string name="import_privacy">The file is read on this phone only. Lines you imported before are skipped, so importing the same statement again is safe.</string>
+    <string name="import_unreadable">Couldn\'t open that file. Pick a CSV file under 5 MB. Excel or PDF statements need to be saved as CSV first.</string>
+    <string name="import_no_rows">No transactions found in that file. Check which column is which.</string>
+    <string name="import_mapping_hint">We couldn\'t tell which column is which. Choose them below.</string>
+    <string name="import_col_date">Date</string>
+    <string name="import_col_description">Description</string>
+    <string name="import_col_amount">Amount</string>
+    <string name="import_col_debit">Money out (debit)</string>
+    <string name="import_col_credit">Money in (credit)</string>
+    <string name="import_col_n">Column %1$d</string>
+    <string name="import_choose">Choose</string>
+    <string name="import_one_amount">One amount column</string>
+    <string name="import_two_amounts">Separate debit and credit</string>
+    <string name="import_continue">Continue</string>
+    <string name="import_into">Import into</string>
+    <string name="import_summary">%1$d new · %2$d may already be added · %3$d imported before</string>
+    <string name="import_plus_is_in">Plus = money in</string>
+    <string name="import_plus_is_out">Plus = money spent</string>
+    <string name="import_status_done">Imported before</string>
+    <string name="import_status_maybe">You may have added this already</string>
+    <string name="import_done_body">They\'re in your transactions now and count towards budgets and reports.</string>
+    <string name="import_finish">Done</string>
+    <plurals name="import_action">
+        <item quantity="one">Import %1$d transaction</item>
+        <item quantity="other">Import %1$d transactions</item>
+    </plurals>
+    <plurals name="import_done">
+        <item quantity="one">%1$d transaction imported</item>
+        <item quantity="other">%1$d transactions imported</item>
+    </plurals>
+    <plurals name="import_skipped">
+        <item quantity="one">%1$d line without a date or amount was skipped</item>
+        <item quantity="other">%1$d lines without a date or amount were skipped</item>
+    </plurals>
+    <string name="rules_title">Category rules</string>
+    <string name="rules_body">New transactions get a category automatically: your rules first, then what you chose before for the same shop, then common names like Swiggy or Uber. It all happens on this phone.</string>
+    <string name="rules_empty_title">No rules yet</string>
+    <string name="rules_empty_body">Add one, e.g. anything with “Ravi Stores” goes to Groceries.</string>
+    <string name="rules_add">Add rule</string>
+    <string name="rules_delete">Delete rule</string>
+    <string name="rules_pattern">When the description has</string>
+    <string name="rules_pattern_hint">e.g. ravi stores</string>
+    <string name="rules_category_gone">Category deleted</string>
 </resources>

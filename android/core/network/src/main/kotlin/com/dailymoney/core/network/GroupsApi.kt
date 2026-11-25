@@ -1,6 +1,8 @@
 package com.dailymoney.core.network
 
+import com.dailymoney.core.network.model.ApprovalPolicyDto
 import com.dailymoney.core.network.model.CreateGroupDto
+import com.dailymoney.core.network.model.DecisionRequestDto
 import com.dailymoney.core.network.model.CreatedInvitationDto
 import com.dailymoney.core.network.model.GroupDetailDto
 import com.dailymoney.core.network.model.GroupSummaryDto
@@ -84,4 +86,16 @@ interface GroupsApi {
 
     @PUT("api/v1/organizations/{id}/members/{userId}/permissions")
     suspend fun setOverrides(@Path("id") id: String, @Path("userId") userId: String, @Body body: OverridesDto): Response<Unit>
+
+    @GET("api/v1/organizations/{id}/approval-policy")
+    suspend fun approvalPolicy(@Path("id") id: String): ApprovalPolicyDto
+
+    @PUT("api/v1/organizations/{id}/approval-policy")
+    suspend fun saveApprovalPolicy(@Path("id") id: String, @Body body: ApprovalPolicyDto): ApprovalPolicyDto
+
+    @POST("api/v1/transactions/{id}/approve")
+    suspend fun approve(@Path("id") id: String, @Body body: DecisionRequestDto): Response<Unit>
+
+    @POST("api/v1/transactions/{id}/reject")
+    suspend fun reject(@Path("id") id: String, @Body body: DecisionRequestDto): Response<Unit>
 }

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -181,6 +182,7 @@ class GroupDetailViewModel @Inject constructor(
 internal fun GroupDetailScreen(
     onBack: () -> Unit,
     onRoles: (String) -> Unit,
+    onExpenses: (String) -> Unit,
     onMemberPermissions: (groupId: String, userId: String, name: String) -> Unit,
     viewModel: GroupDetailViewModel = hiltViewModel(),
 ) {
@@ -237,6 +239,15 @@ internal fun GroupDetailScreen(
                 }
             }
             state.actionError?.takeIf { state.dialog == null }?.let { e -> item { ErrorBanner(e.message()) } }
+            item {
+                OutlinedCard(Modifier.fillMaxWidth().padding(top = Spacing.sm).clickable { onExpenses(g.id) }) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.shared_title)) },
+                        supportingContent = { Text(stringResource(R.string.shared_open_hint)) },
+                        leadingContent = { Icon(Icons.Filled.ReceiptLong, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    )
+                }
+            }
             if (g.canInvite) {
                 item { PrimaryButton(stringResource(R.string.detail_invite), { viewModel.show(DetailDialog.Invite()) }, Modifier.padding(vertical = Spacing.sm)) }
             }

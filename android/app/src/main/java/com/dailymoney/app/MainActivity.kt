@@ -53,8 +53,14 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) {
             viewModel.handleLink(intent?.data)
             viewModel.handleOpen(intent?.extras)
+            viewModel.handleShare(intent)
         }
         setContent { DailyMoneyTheme { AppRoot(viewModel) } }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (FirebaseApp.getApps(this).isNotEmpty()) viewModel.onForeground()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -62,6 +68,7 @@ class MainActivity : ComponentActivity() {
         if (FirebaseApp.getApps(this).isNotEmpty()) {
             viewModel.handleLink(intent.data)
             viewModel.handleOpen(intent.extras)
+            viewModel.handleShare(intent)
         }
     }
 }

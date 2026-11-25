@@ -19,5 +19,7 @@ object AppModule {
         googleWebClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID,
         authContinueUrl = BuildConfig.AUTH_CONTINUE_URL,
         apiBaseUrl = BuildConfig.API_BASE_URL,
+        privacyPolicyUrl = BuildConfig.PRIVACY_URL,
+        apiCertificatePins = BuildConfig.API_CERT_PINS.split(',').map { it.trim() }.filter { it.isNotEmpty() },
     )
 }

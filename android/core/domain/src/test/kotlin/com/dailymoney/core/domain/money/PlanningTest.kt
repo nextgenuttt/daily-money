@@ -66,6 +66,9 @@ class PlanningTest {
         override suspend fun save(transaction: Transaction) {
             saved[transaction.id] = transaction
         }
+        override suspend fun importAll(transactions: List<Transaction>) = 0
+        override suspend fun importedHashes(hashes: Collection<String>) = emptySet<String>()
+        override suspend fun labelledNotes(since: java.time.Instant) = emptyList<com.dailymoney.core.domain.smart.LabelledNote>()
         override suspend fun delete(id: String) {
             saved.remove(id)
         }

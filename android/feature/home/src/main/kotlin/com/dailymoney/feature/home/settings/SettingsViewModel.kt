@@ -2,6 +2,8 @@ package com.dailymoney.feature.home.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailymoney.core.domain.auth.DeleteAccountResult
+import com.dailymoney.core.domain.auth.DeleteAccountUseCase
 import com.dailymoney.core.domain.auth.PendingChangesRepository
 import com.dailymoney.core.domain.auth.SignOutEverywhereUseCase
 import com.dailymoney.core.domain.auth.SignOutUseCase
@@ -21,6 +23,7 @@ import kotlinx.coroutines.launch
 sealed interface LogoutDialog {
     data class Confirm(val unsyncedChanges: Int) : LogoutDialog
     data object ConfirmEverywhere : LogoutDialog
+    data object ConfirmDelete : LogoutDialog
 }
 
 sealed interface BackupDialog {
@@ -32,12 +35,15 @@ enum class BackupMessage { BACKED_UP, BACKUP_FAILED, RESTORED, WRONG_PASSWORD, N
 
 data class SettingsUiState(
     val appVersion: String,
+    val privacyUrl: String = "",
     val canSignOutEverywhere: Boolean,
     val dialog: LogoutDialog? = null,
     val working: Boolean = false,
     val everywhereFailed: Boolean = false,
     val backupDialog: BackupDialog? = null,
     val backupMessage: BackupMessage? = null,
+    /** Why the account wasn't deleted; null when it was or nobody asked. */
+    val deleteProblem: DeleteAccountResult? = null,
 )
 
 /** Sign-out flow from doc 04 §4.6. The sign-out itself moves the app back to Welcome via the session. */
@@ -49,13 +55,14 @@ class SettingsViewModel @Inject constructor(
     private val signOutEverywhere: SignOutEverywhereUseCase,
     private val backups: BackupService,
     private val restoreBackup: RestoreBackupUseCase,
+    private val deleteAccount: DeleteAccountUseCase,
 ) : ViewModel() {
 
     private var exportPassword: CharArray? = null
     private var signOutAfterBackup = false
 
     private val _state = MutableStateFlow(
-        SettingsUiState(appVersion = config.appVersion, canSignOutEverywhere = config.backendEnabled),
+        SettingsUiState(appVersion = config.appVersion, privacyUrl = config.privacyPolicyUrl, canSignOutEverywhere = config.backendEnabled),
     )
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
 
@@ -65,6 +72,8 @@ class SettingsViewModel @Inject constructor(
             _state.update { it.copy(dialog = LogoutDialog.Confirm(pending), everywhereFailed = false) }
         }
     }
+
+    fun onDeleteAccountClick() = _state.update { it.copy(dialog = LogoutDialog.ConfirmDelete, deleteProblem = null) }
 
     fun onSignOutEverywhereClick() = _state.update { it.copy(dialog = LogoutDialog.ConfirmEverywhere, everywhereFailed = false) }
 
@@ -79,6 +88,11 @@ class SettingsViewModel @Inject constructor(
                 LogoutDialog.ConfirmEverywhere -> {
                     val ok = signOutEverywhere()
                     _state.update { it.copy(working = false, everywhereFailed = !ok) }
+                }
+                LogoutDialog.ConfirmDelete -> {
+                    // On success the session ends and the app returns to Welcome.
+                    val result = deleteAccount()
+                    _state.update { it.copy(working = false, deleteProblem = result.takeIf { r -> r != DeleteAccountResult.Deleted }) }
                 }
             }
         }

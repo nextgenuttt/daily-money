@@ -29,4 +29,33 @@
     <string name="action_completed">Completed</string>
     <string name="action_reschedule">Reschedule</string>
     <string name="action_remind_later">Remind later</string>
+    <string name="channel_approvals">Approvals</string>
+    <string name="channel_messages">Expense messages</string>
+    <string name="channel_group_activity">Group activity</string>
+    <string name="notif_public_group">New update in a group</string>
+    <string name="notif_an_expense">an expense</string>
+    <string name="notif_approval_requested_title">Approval needed in %1$s</string>
+    <string name="notif_approval_requested_body">%1$s added %2$s of %3$s. Approve or reject it.</string>
+    <string name="notif_approved_title">Expense approved</string>
+    <string name="notif_approved_body">Your %1$s of %2$s was approved by %3$s.</string>
+    <string name="notif_rejected_title">Expense rejected</string>
+    <string name="notif_rejected_body">Your %1$s of %2$s was rejected: %3$s</string>
+    <string name="notif_added_title">New expense in %1$s</string>
+    <string name="notif_added_body">%1$s added %2$s of %3$s.</string>
+    <string name="notif_share_title">Your share in %1$s</string>
+    <string name="notif_share_body">Your share of %1$s is %2$s, paid by %3$s.</string>
+    <string name="notif_settle_requested_title">Did you get paid?</string>
+    <string name="notif_settle_requested_body">%1$s says they paid you %2$s. Confirm when you\'ve received it.</string>
+    <string name="notif_settle_recorded_title">Payment recorded</string>
+    <string name="notif_settle_recorded_body">%1$s recorded your payment of %2$s.</string>
+    <string name="notif_settle_confirmed_title">Payment confirmed</string>
+    <string name="notif_settle_confirmed_body">%1$s confirmed getting your %2$s.</string>
+    <string name="notif_settle_cancelled_title">Payment not confirmed</string>
+    <string name="notif_settle_cancelled_body">%1$s cancelled the %2$s payment record.</string>
+    <string name="notif_message_title">%1$s on %2$s</string>
+    <string name="notif_digest_title">Your group updates</string>
+    <plurals name="notif_digest_body">
+        <item quantity="one">You have %d unread update.</item>
+        <item quantity="other">You have %d unread updates.</item>
+    </plurals>
 </resources>

@@ -1,5 +1,6 @@
 package com.dailymoney.core.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.Index
@@ -40,7 +41,7 @@ data class CategoryEntity(
 
 @Entity(
     tableName = "transactions",
-    indices = [Index("occurredAt"), Index("accountId"), Index("toAccountId"), Index("categoryId")],
+    indices = [Index("occurredAt"), Index("accountId"), Index("toAccountId"), Index("categoryId"), Index("dedupeHash")],
 )
 data class TransactionEntity(
     @PrimaryKey val id: String,
@@ -58,12 +59,33 @@ data class TransactionEntity(
     val paymentMethod: String?,
     val visibility: String = "PERSONAL",
     val approvalStatus: String = "APPROVED",
-    /** LOCAL until the R2 sync engine exists; then PENDING_SYNC / SYNCED / CONFLICT. */
+    /** LOCAL for personal rows; PENDING_SYNC / SYNCED / SYNC_FAILED for rows shared with a group. */
     val localSyncStatus: String = "LOCAL",
     val version: Int = 1,
     val createdAt: Long,
     val updatedAt: Long,
     val deletedAt: Long? = null,
+    /** Comma-separated user ids when visibility is SELECTED_MEMBERS. */
+    @ColumnInfo(defaultValue = "NULL") val allowedMemberIds: String? = null,
+    /** The server's version of this row; 0 until the group has it. Sent as the base of the next edit. */
+    @ColumnInfo(defaultValue = "0") val serverVersion: Int = 0,
+    /** The creator's split as entered: `METHOD;userId=value,userId=value`. Null = not split. */
+    @ColumnInfo(defaultValue = "NULL") val splitSpec: String? = null,
+    /** MANUAL, RECURRING, OCR, STATEMENT_IMPORT or SMS. */
+    @ColumnInfo(defaultValue = "MANUAL") val source: String = "MANUAL",
+    /** Statement imports only: the same line is never imported twice. */
+    @ColumnInfo(defaultValue = "NULL") val dedupeHash: String? = null,
+    /** Sent to the server at least once (the reply may have been lost), so the group may have a copy. */
+    @ColumnInfo(defaultValue = "0") val pushAttempted: Boolean = false,
+)
+
+/** "Anything mentioning [pattern] goes to [categoryId]" (Phase 11). */
+@Entity(tableName = "category_rules", indices = [Index("categoryId")])
+data class CategoryRuleEntity(
+    @PrimaryKey val id: String,
+    val pattern: String,
+    val categoryId: String,
+    val createdAt: Long,
 )
 
 @Entity(tableName = "budgets", indices = [Index("categoryId")])

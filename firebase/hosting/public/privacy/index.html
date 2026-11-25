@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Money · Privacy policy</title>
+  <link rel="stylesheet" href="/auth/style.css">
+</head>
+<body>
+  <!-- DRAFT (Phase 12). Fill in OWNER_NAME, SUPPORT_EMAIL and EFFECTIVE_DATE, and have it reviewed before publishing. -->
+  <main class="card">
+    <h1>Privacy policy</h1>
+    <p>Effective EFFECTIVE_DATE. Daily Money is made by OWNER_NAME. Contact: SUPPORT_EMAIL.</p>
+
+    <h2>What stays on your phone</h2>
+    <p>Your accounts, transactions, budgets, goals, debts, reminders, tasks and receipt photos are stored only
+      on your phone, in an encrypted database. Receipt photos and bank statements you import are read on the
+      phone (Google ML Kit runs on the device). Bank messages are read only when you share one into the app;
+      the app does not read your SMS inbox.</p>
+
+    <h2>What reaches our servers</h2>
+    <ul>
+      <li><strong>Account:</strong> name, email and sign-in provider, through Google Firebase Authentication.</li>
+      <li><strong>Groups (only if you use them):</strong> group names and members, invitations, and the expenses
+        you choose to share: amount, category, date, note, split and approvals. Never your accounts or balances.</li>
+      <li><strong>Payments between members:</strong> settlements you record, and your UPI ID if you add one.</li>
+      <li><strong>Messages and notifications</strong> about shared expenses.</li>
+      <li><strong>Device:</strong> a random device ID, app version and a push token (Firebase Cloud Messaging).
+        Pushes carry no content.</li>
+    </ul>
+    <p>Data is stored with Supabase (PostgreSQL) and Google Firebase, encrypted in transit (HTTPS) and at rest.</p>
+
+    <h2>What we don't do</h2>
+    <p>No ads, no selling or sharing of data with advertisers or data brokers, no tracking across apps.</p>
+
+    <h2>Who sees your shared data</h2>
+    <p>Only members of the group you share with, limited by the group's roles and your "who can see this"
+      choice. Group owners and admins manage members and roles.</p>
+
+    <h2>Keeping and deleting</h2>
+    <p>You can delete your account at any time in Settings → Delete account, or see
+      <a href="/delete-account">how to delete your account</a>. Shared expenses stay for the other members,
+      shown as "Former member". Group audit history keeps only an anonymous ID instead of your name.</p>
+
+    <h2>Children</h2>
+    <p>Daily Money is not meant for children under 13.</p>
+
+    <h2>Changes</h2>
+    <p>We'll show changes here and in the app before they take effect.</p>
+  </main>
+</body>
+</html>

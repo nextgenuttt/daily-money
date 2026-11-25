@@ -20,6 +20,8 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Savings
@@ -228,5 +230,7 @@ enum class MoneyMenuItem(@StringRes val label: Int, val icon: ImageVector) {
     SUBSCRIPTIONS(R.string.subs_title, Icons.Filled.Subscriptions),
     GOALS(R.string.goals_title, Icons.Filled.Savings),
     DEBTS(R.string.debts_title, Icons.Filled.Handshake),
+    IMPORT(R.string.import_title, Icons.Filled.UploadFile),
+    RULES(R.string.rules_title, Icons.Filled.AutoAwesome),
     EXPORT(R.string.export_title, Icons.Filled.FileDownload),
 }

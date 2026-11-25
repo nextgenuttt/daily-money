@@ -27,7 +27,7 @@ object TableSnapshot {
     val TABLES = listOf(
         "accounts", "categories", "transactions", "budgets", "recurring_rules", "savings_goals", "goal_contributions",
         "debts", "debt_repayments", "reminders", "reminder_steps", "reminder_occurrences", "todos", "todo_checklist_items",
-        "todo_activity",
+        "todo_activity", "category_rules",
     )
 
     fun dump(db: SupportSQLiteDatabase, schemaVersion: Int, createdAtMillis: Long): JsonObject = buildJsonObject {

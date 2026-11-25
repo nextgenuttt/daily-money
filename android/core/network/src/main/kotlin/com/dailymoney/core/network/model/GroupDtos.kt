@@ -102,3 +102,30 @@ data class MemberPermissionsDto(
 
 @Serializable
 data class OverridesDto(val overrides: Map<String, String>)
+
+@Serializable
+data class ApprovalRuleDto(
+    val type: String,
+    val amountMinor: Long? = null,
+    val categories: List<String>? = null,
+    val userIds: List<String>? = null,
+    val enabled: Boolean? = true,
+)
+
+@Serializable
+data class ApprovalPersonDto(val userId: String, val name: String)
+
+@Serializable
+data class ApprovalPolicyDto(
+    val mode: String,
+    val allowSelfApproval: Boolean = false,
+    val requiredApprovals: Int = 1,
+    val reapproveOnMaterialChange: Boolean = true,
+    val approverIds: List<String> = emptyList(),
+    val rules: List<ApprovalRuleDto> = emptyList(),
+    val eligibleApprovers: List<ApprovalPersonDto> = emptyList(),
+    val canEdit: Boolean = false,
+)
+
+@Serializable
+data class DecisionRequestDto(val version: Int, val reason: String? = null)

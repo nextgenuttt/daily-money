@@ -6,11 +6,13 @@ import androidx.navigation.compose.composable
 import com.dailymoney.core.domain.auth.AuthUser
 import com.dailymoney.feature.home.home.HomeScreen
 import com.dailymoney.feature.home.home.QuickAddActions
+import com.dailymoney.feature.home.settings.NotificationSettingsScreen
 import com.dailymoney.feature.home.settings.SettingsScreen
 import kotlinx.serialization.Serializable
 
 @Serializable data object HomeRoute
 @Serializable data object SettingsRoute
+@Serializable data object NotificationSettingsRoute
 
 /** Links from Home into other features; the app module wires them so features stay independent. */
 data class HomeLinks(
@@ -29,6 +31,7 @@ data class HomeLinks(
     val debts: () -> Unit,
     val reminders: () -> Unit,
     val openReminder: (String, Long) -> Unit,
+    val notifications: () -> Unit,
 )
 
 fun NavGraphBuilder.homeGraph(navController: NavController, user: AuthUser, links: HomeLinks) {
@@ -36,6 +39,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController, user: AuthUser, link
         HomeScreen(
             user = user,
             onOpenSettings = { navController.navigate(SettingsRoute) },
+            onOpenNotifications = links.notifications,
             onAddTransaction = links.addTransaction,
             quickAdd = QuickAddActions(links.addTransaction, links.addIncome, links.addReminder, links.addTask),
             onOpenTodo = links.todo,
@@ -52,6 +56,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController, user: AuthUser, link
         )
     }
     composable<SettingsRoute> {
-        SettingsScreen(user = user, onBack = { navController.popBackStack() })
+        SettingsScreen(user = user, onBack = { navController.popBackStack() }, onNotifications = { navController.navigate(NotificationSettingsRoute) })
     }
+    composable<NotificationSettingsRoute> { NotificationSettingsScreen(onBack = { navController.popBackStack() }) }
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,26 @@ fun ErrorBanner(message: String, modifier: Modifier = Modifier) {
     ) {
         Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            Text(
+                message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(start = Spacing.sm),
+            )
+        }
+    }
+}
+
+/** A neutral note, e.g. "filled in from your receipt, please check". */
+@Composable
+fun InfoBanner(message: String, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+        shape = MaterialTheme.shapes.small,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
             Text(
                 message,
                 style = MaterialTheme.typography.bodyMedium,

@@ -1,0 +1,17 @@
+# Startup baseline profile (Phase 12). Compose, Room and other libraries ship their own profiles;
+# these rules pre-compile our own cold-start path: app shell, session, Home dashboard, database and
+# design system. Regenerate with a Macrobenchmark BaselineProfileRule on a device for exact rules.
+HSPLcom/dailymoney/app/**->**(**)**
+Lcom/dailymoney/app/**;
+HSPLcom/dailymoney/core/designsystem/**->**(**)**
+Lcom/dailymoney/core/designsystem/**;
+HSPLcom/dailymoney/feature/home/**->**(**)**
+Lcom/dailymoney/feature/home/**;
+HSPLcom/dailymoney/core/domain/auth/**->**(**)**
+HSPLcom/dailymoney/core/domain/money/**->**(**)**
+Lcom/dailymoney/core/domain/money/**;
+HSPLcom/dailymoney/core/data/auth/**->**(**)**
+HSPLcom/dailymoney/core/data/money/**->**(**)**
+HSPLcom/dailymoney/core/database/**->**(**)**
+Lcom/dailymoney/core/database/**;
+HSPLcom/dailymoney/core/security/**->**(**)**

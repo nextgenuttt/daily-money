@@ -27,9 +27,29 @@ import com.dailymoney.core.domain.money.TransactionDraft
 import com.dailymoney.core.domain.money.TransactionError
 import com.dailymoney.core.domain.money.TransactionRepository
 import com.dailymoney.core.domain.money.TransactionType
+import com.dailymoney.core.domain.money.MoneyParser
+import com.dailymoney.core.domain.money.TransactionSource
+import com.dailymoney.core.domain.smart.BankSmsParser
+import com.dailymoney.core.domain.smart.Categorizer
+import com.dailymoney.core.domain.smart.LoadCategorizerUseCase
+import com.dailymoney.core.domain.smart.ScanReceiptUseCase
+import com.dailymoney.core.domain.sharing.ApprovalStatus
+import com.dailymoney.core.domain.sharing.GroupPerson
+import com.dailymoney.core.domain.sharing.ShareStatus
+import com.dailymoney.core.domain.sharing.SplitCalculator
+import com.dailymoney.core.domain.sharing.SplitEntry
+import com.dailymoney.core.domain.sharing.SplitMethod
+import com.dailymoney.core.domain.sharing.SplitProblem
+import com.dailymoney.core.domain.sharing.SplitResult
+import com.dailymoney.core.domain.sharing.SplitSpec
+import com.dailymoney.core.domain.sharing.SharedExpenseRepository
+import com.dailymoney.core.domain.sharing.SharedGroup
+import com.dailymoney.core.domain.sharing.Sharing
+import com.dailymoney.core.domain.sharing.Visibility
 import com.dailymoney.feature.money.common.sanitizeAmountInput
 import com.dailymoney.feature.money.navigation.AddEditTransactionRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.math.BigDecimal
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -60,9 +80,62 @@ data class TransactionForm(
     val note: String = "",
     val paymentMethod: PaymentMethod? = null,
     val repeat: Frequency? = null,
+    /** Group to share with; null keeps it personal. */
+    val shareGroupId: String? = null,
+    val shareVisibility: Visibility = Visibility.ORGANIZATION,
+    val shareMembers: Set<String> = emptySet(),
+    val split: SplitForm = SplitForm(),
 )
 
+/** Split inputs as typed: percent, share count, or an amount in the transaction's currency. */
+data class SplitForm(
+    val on: Boolean = false,
+    val method: SplitMethod = SplitMethod.EQUAL,
+    val people: Set<String> = emptySet(),
+    val values: Map<String, String> = emptyMap(),
+)
+
+data class ShareUi(
+    /** Groups I may add to, plus the one this entry is already in. */
+    val groups: List<SharedGroup> = emptyList(),
+    val group: SharedGroup? = null,
+    /** Other members of the chosen group (for "selected people"). */
+    val others: List<GroupPerson> = emptyList(),
+    /** Who can be in the split: everyone who will see the expense, me first. */
+    val splitCandidates: List<GroupPerson> = emptyList(),
+    val preview: Map<String, Long> = emptyMap(),
+    val splitProblem: SplitProblem? = null,
+    /** Already on the server: the group is fixed, only who sees it and the split can change. */
+    val locked: Boolean = false,
+    val status: ShareStatus? = null,
+    val approval: ApprovalStatus = ApprovalStatus.APPROVED,
+)
+
+/** The split to save, from what's typed; null when not splitting or not an expense. */
+internal fun buildSplit(form: TransactionForm, candidates: List<GroupPerson>, currency: String): SplitSpec? {
+    if (!form.split.on || form.type != TransactionType.EXPENSE) return null
+    val entries = candidates.filter { it.userId in form.split.people }.map { person ->
+        val text = form.split.values[person.userId].orEmpty()
+        val value = when (form.split.method) {
+            SplitMethod.EQUAL -> BigDecimal.ONE
+            SplitMethod.AMOUNT -> MoneyParser.parse(text, currency)?.let { BigDecimal.valueOf(it) } ?: BigDecimal.ZERO
+            SplitMethod.PERCENT, SplitMethod.SHARES -> text.trim().toBigDecimalOrNull() ?: BigDecimal.ZERO
+        }
+        SplitEntry(person.userId, value)
+    }
+    return SplitSpec(form.split.method, entries)
+}
+
+internal fun splitCandidates(group: SharedGroup?, form: TransactionForm): List<GroupPerson> {
+    val members = group?.members.orEmpty()
+    val audience = if (form.shareVisibility == Visibility.ORGANIZATION) members else members.filter { it.isMe || it.userId in form.shareMembers }
+    return audience.sortedByDescending { it.isMe }
+}
+
 enum class AttachmentMessage { TOO_LARGE, UNSUPPORTED, FAILED }
+
+/** What the app filled in for the user, shown above the form so they check it. */
+enum class AssistMessage { RECEIPT_READ, RECEIPT_UNREADABLE, MESSAGE_READ, MESSAGE_UNREADABLE }
 
 data class AddEditUiState(
     val isEdit: Boolean,
@@ -77,6 +150,11 @@ data class AddEditUiState(
     val confirmDelete: Boolean = false,
     val attachments: List<Attachment> = emptyList(),
     val attachmentMessage: AttachmentMessage? = null,
+    val share: ShareUi = ShareUi(),
+    val scanning: Boolean = false,
+    val assist: AssistMessage? = null,
+    /** A category guessed from the note, offered while none is chosen. */
+    val suggestedCategory: Category? = null,
 )
 
 @HiltViewModel
@@ -89,8 +167,11 @@ class AddEditTransactionViewModel @Inject constructor(
     private val deleteTransaction: DeleteTransactionUseCase,
     private val createRecurring: CreateRecurringFromTransactionUseCase,
     private val attachments: AttachmentRepository,
+    sharedExpenses: SharedExpenseRepository,
+    private val scanReceipt: ScanReceiptUseCase,
+    private val loadCategorizer: LoadCategorizerUseCase,
     config: AppConfig,
-    clock: Clock,
+    private val clock: Clock,
 ) : ViewModel() {
 
     private val route = savedStateHandle.toRoute<AddEditTransactionRoute>()
@@ -101,6 +182,10 @@ class AddEditTransactionViewModel @Inject constructor(
     private var saved = false
     private val currency = config.defaultCurrency
     private var existingOccurredAt: Instant? = null
+    private val categorizer = MutableStateFlow<Categorizer?>(null)
+
+    /** Set when a receipt or message filled the form; plain edits afterwards don't change it. */
+    private var source = TransactionSource.MANUAL
 
     private val form = MutableStateFlow(
         TransactionForm(
@@ -112,12 +197,33 @@ class AddEditTransactionViewModel @Inject constructor(
         AddEditUiState(isEdit = transactionId != null, loading = transactionId != null, form = form.value, currency = currency),
     )
 
+    private val share = MutableStateFlow(ShareUi())
+
     private val _closeEvents = Channel<Unit>(Channel.BUFFERED)
     val closeEvents = _closeEvents.receiveAsFlow()
 
+    private val shareState = combine(share, sharedExpenses.observeGroups(), form) { sh, all, f ->
+        val group = all.firstOrNull { it.id == f.shareGroupId }
+        val candidates = splitCandidates(group, f)
+        val spec = buildSplit(f, candidates, currency)
+        val amount = MoneyParser.parse(f.amountText, currency)
+        val result = spec?.takeIf { amount != null && amount > 0 }?.let { SplitCalculator.split(amount!!, it.method, it.entries) }
+        sh.copy(
+            groups = all.filter { it.canAdd || it.id == f.shareGroupId },
+            group = group,
+            others = group?.members.orEmpty().filter { !it.isMe },
+            splitCandidates = candidates,
+            preview = (result as? SplitResult.Ok)?.let { ok -> spec.entries.map { it.userId }.zip(ok.shares).toMap() }.orEmpty(),
+            splitProblem = (result as? SplitResult.Invalid)?.problem,
+        )
+    }
+
+    private val suggestion = combine(form, categorizer) { f, c -> if (f.categoryId == null) c?.suggest(f.note, f.type) else null }
+
     val state: StateFlow<AddEditUiState> = combine(
-        meta, form, categories.observe(), accounts.observeBalances(), attachments.observeFor(entityId),
-    ) { m, f, cats, balances, files ->
+        combine(meta, form, ::Pair), categories.observe(), accounts.observeBalances(), attachments.observeFor(entityId),
+        combine(shareState, suggestion, ::Pair),
+    ) { (m, f), cats, balances, files, (sh, suggested) ->
         val kind = if (f.type == TransactionType.INCOME) CategoryKind.INCOME else CategoryKind.EXPENSE
         m.copy(
             form = f,
@@ -125,10 +231,13 @@ class AddEditTransactionViewModel @Inject constructor(
             // Archived accounts stay selectable only when an old transaction already uses them.
             accounts = balances.map { it.account }.filter { !it.archived || it.id == f.accountId || it.id == f.toAccountId },
             attachments = files,
+            share = sh,
+            suggestedCategory = suggested,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), meta.value)
 
     init {
+        viewModelScope.launch { categorizer.value = loadCategorizer() }
         viewModelScope.launch {
             if (transactionId != null) {
                 val existing = transactions.get(transactionId)
@@ -146,11 +255,36 @@ class AddEditTransactionViewModel @Inject constructor(
                     date = existing.occurredAt.atZone(clock.zone).toLocalDate(),
                     note = existing.note.orEmpty(),
                     paymentMethod = existing.paymentMethod,
+                    shareGroupId = existing.sharing?.groupId,
+                    shareVisibility = existing.sharing?.visibility ?: Visibility.ORGANIZATION,
+                    shareMembers = existing.sharing?.memberIds.orEmpty(),
+                    split = existing.sharing?.split?.let { spec ->
+                        SplitForm(
+                            on = true,
+                            method = spec.method,
+                            people = spec.entries.map { it.userId }.toSet(),
+                            values = spec.entries.associate { e ->
+                                e.userId to when (spec.method) {
+                                    SplitMethod.EQUAL -> ""
+                                    SplitMethod.AMOUNT -> MoneyFormatter.toInput(e.value.toLong(), existing.currency)
+                                    else -> e.value.stripTrailingZeros().toPlainString()
+                                }
+                            },
+                        )
+                    } ?: SplitForm(),
                 )
+                share.update {
+                    it.copy(
+                        locked = existing.sharing?.onServer == true,
+                        status = existing.sharing?.status,
+                        approval = existing.sharing?.approval ?: ApprovalStatus.APPROVED,
+                    )
+                }
                 meta.update { it.copy(loading = false) }
             } else {
                 val firstAccount = accounts.observeBalances().first().firstOrNull { !it.account.archived }?.account?.id
                 form.update { if (it.accountId == null) it.copy(accountId = firstAccount) else it }
+                route.sharedText?.let { fillFromMessage(it) }
             }
         }
     }
@@ -170,9 +304,56 @@ class AddEditTransactionViewModel @Inject constructor(
     fun setPaymentMethod(method: PaymentMethod) = form.update { it.copy(paymentMethod = if (it.paymentMethod == method) null else method) }
     fun setRepeat(frequency: Frequency?) = form.update { it.copy(repeat = frequency) }
 
-    fun addAttachment(uri: Uri) {
+    fun setShareGroup(groupId: String?) {
+        if (share.value.locked) return
+        form.update { if (it.shareGroupId == groupId) it else it.copy(shareGroupId = groupId, shareMembers = emptySet(), split = SplitForm()) }
+    }
+
+    fun setShareVisibility(visibility: Visibility) {
+        form.update { it.copy(shareVisibility = visibility) }
+        clearError(TransactionError.MEMBERS_REQUIRED, TransactionError.SPLIT_INVALID)
+    }
+
+    fun toggleShareMember(userId: String) {
+        form.update {
+            val removing = userId in it.shareMembers
+            it.copy(
+                shareMembers = if (removing) it.shareMembers - userId else it.shareMembers + userId,
+                // Someone who can't see the expense can't be charged for it.
+                split = if (removing) it.split.copy(people = it.split.people - userId) else it.split,
+            )
+        }
+        clearError(TransactionError.MEMBERS_REQUIRED, TransactionError.SPLIT_INVALID)
+    }
+
+    /** Turning the split on starts with an equal split among everyone who sees the expense. */
+    fun setSplitOn(on: Boolean) {
+        val candidates = state.value.share.splitCandidates.map { it.userId }.toSet()
+        form.update { it.copy(split = if (on) SplitForm(on = true, people = candidates) else SplitForm()) }
+        clearError(TransactionError.SPLIT_INVALID)
+    }
+
+    fun setSplitMethod(method: SplitMethod) {
+        form.update { it.copy(split = it.split.copy(method = method, values = emptyMap())) }
+        clearError(TransactionError.SPLIT_INVALID)
+    }
+
+    fun toggleSplitPerson(userId: String) {
+        form.update { f -> f.copy(split = f.split.copy(people = if (userId in f.split.people) f.split.people - userId else f.split.people + userId)) }
+        clearError(TransactionError.SPLIT_INVALID)
+    }
+
+    fun setSplitValue(userId: String, text: String) {
+        val cleaned = if (form.value.split.method == SplitMethod.AMOUNT) sanitizeAmountInput(text, Currencies.exponent(currency)) else sanitizeAmountInput(text, 4)
+        form.update { f -> f.copy(split = f.split.copy(values = f.split.values + (userId to cleaned))) }
+        clearError(TransactionError.SPLIT_INVALID)
+    }
+
+    /** [isPhoto] photos of a new, still empty transaction are read to fill the form. */
+    fun addAttachment(uri: Uri, isPhoto: Boolean) {
         meta.update { it.copy(attachmentMessage = null) }
         viewModelScope.launch {
+            if (isPhoto && transactionId == null && form.value.amountText.isBlank()) fillFromReceipt(uri)
             val result = attachments.import(entityId, uri.toString())
             // Camera photos are written to a temporary file first.
             if (uri.scheme == "file") uri.path?.let { File(it).delete() }
@@ -186,6 +367,46 @@ class AddEditTransactionViewModel @Inject constructor(
         }
     }
 
+    private suspend fun fillFromReceipt(uri: Uri) {
+        meta.update { it.copy(scanning = true, assist = null) }
+        val scan = scanReceipt(uri.toString(), currency)
+        val amount = scan?.amountMinor
+        if (amount == null) {
+            meta.update { it.copy(scanning = false, assist = AssistMessage.RECEIPT_UNREADABLE) }
+            return
+        }
+        prefill(TransactionType.EXPENSE, amount, scan.date, scan.merchant)
+        source = TransactionSource.OCR
+        meta.update { it.copy(scanning = false, assist = AssistMessage.RECEIPT_READ) }
+    }
+
+    private fun fillFromMessage(text: String) {
+        val parsed = BankSmsParser.parse(text, currency, LocalDate.now(clock))
+        if (parsed == null) {
+            meta.update { it.copy(assist = AssistMessage.MESSAGE_UNREADABLE) }
+            return
+        }
+        prefill(parsed.type, parsed.amountMinor, parsed.date, parsed.counterparty)
+        source = TransactionSource.SMS
+        meta.update { it.copy(assist = AssistMessage.MESSAGE_READ) }
+    }
+
+    /** Only fills what the user hasn't typed yet. */
+    private fun prefill(type: TransactionType, amountMinor: Long, date: LocalDate?, note: String?) {
+        form.update { f ->
+            val typed = if (f.amountText.isBlank()) f.copy(type = type, categoryId = if (f.type == type) f.categoryId else null) else f
+            val withNote = typed.copy(
+                amountText = typed.amountText.ifBlank { MoneyFormatter.toInput(amountMinor, currency) },
+                date = date ?: typed.date,
+                note = typed.note.ifBlank { note.orEmpty() },
+            )
+            withNote.copy(categoryId = withNote.categoryId ?: categorizer.value?.suggest(withNote.note, withNote.type)?.id)
+        }
+        clearError()
+    }
+
+    fun dismissAssist() = meta.update { it.copy(assist = null) }
+
     fun removeAttachment(attachment: Attachment) {
         viewModelScope.launch { attachments.delete(attachment.id) }
     }
@@ -196,7 +417,13 @@ class AddEditTransactionViewModel @Inject constructor(
     fun save() {
         if (meta.value.saving) return
         val f = form.value
-        val draft = TransactionDraft(entityId, f.type, f.amountText, currency, f.categoryId, f.accountId, f.toAccountId, f.date, f.note, f.paymentMethod)
+        val sharing = f.shareGroupId?.let { group ->
+            Sharing(
+                group, f.shareVisibility, if (f.shareVisibility == Visibility.SELECTED_MEMBERS) f.shareMembers else emptySet(),
+                split = buildSplit(f, state.value.share.splitCandidates, currency),
+            )
+        }
+        val draft = TransactionDraft(entityId, f.type, f.amountText, currency, f.categoryId, f.accountId, f.toAccountId, f.date, f.note, f.paymentMethod, sharing, source)
         meta.update { it.copy(saving = true) }
         viewModelScope.launch {
             when (val result = saveTransaction(draft, existingOccurredAt)) {

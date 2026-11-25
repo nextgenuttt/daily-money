@@ -4,11 +4,14 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import com.dailymoney.identity.domain.Device;
 import com.dailymoney.identity.domain.User;
 import com.dailymoney.identity.infra.DeviceRepository;
 import com.dailymoney.identity.infra.UserRepository;
+import com.dailymoney.organization.application.OrganizationService;
+import com.dailymoney.sync.NotificationService;
 import com.dailymoney.shared.id.UuidV7;
 import com.dailymoney.shared.security.FirebasePrincipal;
 import com.dailymoney.shared.web.ApiException;
@@ -20,14 +23,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AccountService {
 
+    private static final Pattern UPI_ID = Pattern.compile("^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,32}$");
+
     private final UserRepository users;
     private final DeviceRepository devices;
     private final FirebaseAccountAdmin firebaseAdmin;
     private final TokenRevocationService revocation;
     private final Clock clock;
+    private final OrganizationService organizations;
+    private final NotificationService notifications;
 
     public AccountService(UserRepository users, DeviceRepository devices, FirebaseAccountAdmin firebaseAdmin,
-            TokenRevocationService revocation, Clock clock) {
+            TokenRevocationService revocation, Clock clock, OrganizationService organizations, NotificationService notifications) {
+        this.organizations = organizations;
+        this.notifications = notifications;
         this.users = users;
         this.devices = devices;
         this.firebaseAdmin = firebaseAdmin;
@@ -71,6 +80,18 @@ public class AccountService {
         devices.save(device);
     }
 
+    /** Blank clears it. Shared only with people in the same groups, so they can pay through a UPI app. */
+    @Transactional
+    public User changeUpiId(FirebasePrincipal principal, String upiId) {
+        User user = requireUser(principal);
+        String cleaned = upiId == null || upiId.isBlank() ? null : upiId.trim();
+        if (cleaned != null && !UPI_ID.matcher(cleaned).matches()) {
+            throw ApiException.rule("INVALID_UPI_ID", "Enter a UPI ID like name@bank");
+        }
+        user.changeUpiId(cleaned, clock.instant());
+        return users.save(user);
+    }
+
     @Transactional
     public void signOutEverywhere(FirebasePrincipal principal) {
         User user = requireUser(principal);
@@ -80,10 +101,16 @@ public class AccountService {
         revocation.evict(user.getFirebaseUid());
     }
 
-    /** Spec §22 account deletion. Organization data anonymisation is added with the organization module. */
+    /**
+     * Spec §22 / analysis G11: leaves every group (owners hand over first), deletes devices and
+     * notifications, and anonymises the profile. Group expenses stay for the others, shown as "Former
+     * member"; audit rows keep only the id. Personal money data never reached the server.
+     */
     @Transactional
     public void deleteAccount(FirebasePrincipal principal) {
         User user = requireUser(principal);
+        organizations.leaveAllForDeletion(user);
+        notifications.deleteAllFor(user.getId());
         devices.deleteByUserId(user.getId());
         user.markDeleted(clock.instant());
         users.save(user);

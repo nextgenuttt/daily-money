@@ -1,5 +1,9 @@
 package com.dailymoney.core.domain.money
 
+import com.dailymoney.core.domain.sharing.Sharing
+import com.dailymoney.core.domain.sharing.SplitCalculator
+import com.dailymoney.core.domain.sharing.SplitResult
+import com.dailymoney.core.domain.sharing.Visibility
 import com.dailymoney.core.domain.config.AppConfig
 import java.time.Clock
 import java.time.LocalDate
@@ -8,7 +12,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
-enum class TransactionError { AMOUNT_REQUIRED, AMOUNT_INVALID, ACCOUNT_REQUIRED, CATEGORY_REQUIRED, SAME_ACCOUNT, NOTE_TOO_LONG }
+enum class TransactionError { AMOUNT_REQUIRED, AMOUNT_INVALID, ACCOUNT_REQUIRED, CATEGORY_REQUIRED, SAME_ACCOUNT, NOTE_TOO_LONG, MEMBERS_REQUIRED, SPLIT_INVALID }
 
 enum class NameError { REQUIRED, TOO_LONG, DUPLICATE }
 
@@ -28,6 +32,8 @@ data class TransactionDraft(
     val date: LocalDate,
     val note: String,
     val paymentMethod: PaymentMethod?,
+    val sharing: Sharing? = null,
+    val source: TransactionSource = TransactionSource.MANUAL,
 )
 
 class SaveTransactionUseCase @Inject constructor(
@@ -47,6 +53,16 @@ class SaveTransactionUseCase @Inject constructor(
             add(TransactionError.CATEGORY_REQUIRED)
         }
         if (d.note.length > NOTE_MAX) add(TransactionError.NOTE_TOO_LONG)
+        val sharing = d.sharing
+        if (sharing != null && d.type != TransactionType.TRANSFER && sharing.visibility == Visibility.SELECTED_MEMBERS && sharing.memberIds.isEmpty()) {
+            add(TransactionError.MEMBERS_REQUIRED)
+        }
+        val split = sharing?.split
+        if (split != null && d.type == TransactionType.EXPENSE && amount != null && amount > 0 &&
+            SplitCalculator.split(amount, split.method, split.entries) is SplitResult.Invalid
+        ) {
+            add(TransactionError.SPLIT_INVALID)
+        }
     }
 
     suspend operator fun invoke(d: TransactionDraft, existingOccurredAt: java.time.Instant? = null): SaveResult {
@@ -66,6 +82,14 @@ class SaveTransactionUseCase @Inject constructor(
             occurredAt = d.date.atTime(time).atZone(zone).toInstant(),
             note = d.note.trim().ifEmpty { null },
             paymentMethod = if (d.type == TransactionType.TRANSFER) null else d.paymentMethod,
+            // Transfers move money between my own accounts, so there is nothing to share.
+            sharing = when (d.type) {
+                TransactionType.TRANSFER -> null
+                // Only expenses are split; income shared with a group is for reporting.
+                TransactionType.INCOME -> d.sharing?.copy(split = null)
+                TransactionType.EXPENSE -> d.sharing
+            },
+            source = d.source,
         )
         transactions.save(transaction)
         return SaveResult.Saved(transaction)

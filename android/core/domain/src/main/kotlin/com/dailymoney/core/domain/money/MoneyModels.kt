@@ -1,5 +1,6 @@
 package com.dailymoney.core.domain.money
 
+import com.dailymoney.core.domain.sharing.Sharing
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -12,6 +13,9 @@ enum class AccountType { CASH, BANK, UPI, CREDIT_CARD, WALLET }
 enum class CategoryKind { EXPENSE, INCOME }
 
 enum class PaymentMethod { CASH, UPI, CARD, BANK_TRANSFER, WALLET, OTHER }
+
+/** Where a transaction came from (LLD §3); imports also carry a dedupe hash. */
+enum class TransactionSource { MANUAL, RECURRING, OCR, STATEMENT_IMPORT, SMS }
 
 enum class BudgetPeriod { WEEKLY, MONTHLY, YEARLY }
 
@@ -47,6 +51,11 @@ data class Transaction(
     val occurredAt: Instant,
     val note: String?,
     val paymentMethod: PaymentMethod?,
+    /** Null for personal transactions, which never leave the phone. */
+    val sharing: Sharing? = null,
+    val source: TransactionSource = TransactionSource.MANUAL,
+    /** Set on statement imports so the same line is never imported twice. */
+    val dedupeHash: String? = null,
 )
 
 data class TransactionDetails(

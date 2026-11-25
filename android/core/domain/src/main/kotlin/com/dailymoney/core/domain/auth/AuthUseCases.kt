@@ -64,3 +64,35 @@ class SignOutEverywhereUseCase @Inject constructor(
         return revoked
     }
 }
+
+sealed interface DeleteAccountResult {
+    data object Deleted : DeleteAccountResult
+    /** Owner of groups that still have other members; [groups] is the server's list of names. */
+    data class TransferOwnershipFirst(val groups: String) : DeleteAccountResult
+    /** Firebase wants a fresh sign-in before deleting (only without a backend). */
+    data object SignInAgain : DeleteAccountResult
+    data object Failed : DeleteAccountResult
+}
+
+/** Deletes the account with the server (or Firebase directly when there is no backend). */
+interface AccountDeletion {
+    suspend fun delete(): DeleteAccountResult
+}
+
+/** Play policy: in-app account deletion. Afterwards the phone is cleared exactly like a sign-out. */
+class DeleteAccountUseCase @Inject constructor(
+    private val deletion: AccountDeletion,
+    private val auth: AuthRepository,
+    private val backend: BackendSession,
+    private val wiper: LocalDataWiper,
+) {
+    suspend operator fun invoke(): DeleteAccountResult {
+        val result = deletion.delete()
+        if (result == DeleteAccountResult.Deleted) {
+            runCatching { backend.unregisterDevice() }
+            auth.signOut()
+            wiper.wipe()
+        }
+        return result
+    }
+}

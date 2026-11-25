@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application>
+        <!-- Google Play services fetches the on-device text model at install time (Phase 12: keeps ~11 MB per ABI out of the APK). -->
+        <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="ocr" />
         <receiver android:name=".reminders.ReminderAlarmReceiver" android:exported="false" />
         <receiver android:name=".reminders.ReminderActionReceiver" android:exported="false" />
         <receiver android:name=".reminders.RescheduleReceiver" android:exported="true">
@@ -18,5 +20,10 @@
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
+        <service android:name=".sync.SyncMessagingService" android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

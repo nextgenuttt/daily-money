@@ -17,6 +17,8 @@ import com.dailymoney.identity.domain.Device;
 import com.dailymoney.identity.domain.User;
 import com.dailymoney.identity.infra.DeviceRepository;
 import com.dailymoney.identity.infra.UserRepository;
+import com.dailymoney.organization.application.OrganizationService;
+import com.dailymoney.sync.NotificationService;
 import com.dailymoney.shared.security.FirebasePrincipal;
 import com.dailymoney.shared.web.ApiException;
 
@@ -32,6 +34,8 @@ class AccountServiceTest {
     private FirebaseAccountAdmin admin;
     private TokenRevocationService revocation;
     private AccountService service;
+    private OrganizationService organizations;
+    private NotificationService notifications;
 
     private final FirebasePrincipal principal =
             new FirebasePrincipal("uid-1", "Ravi@Example.com", true, null, "password");
@@ -42,7 +46,9 @@ class AccountServiceTest {
         devices = mock(DeviceRepository.class);
         admin = mock(FirebaseAccountAdmin.class);
         revocation = mock(TokenRevocationService.class);
-        service = new AccountService(users, devices, admin, revocation, Clock.fixed(NOW, ZoneOffset.UTC));
+        organizations = mock(OrganizationService.class);
+        notifications = mock(NotificationService.class);
+        service = new AccountService(users, devices, admin, revocation, Clock.fixed(NOW, ZoneOffset.UTC), organizations, notifications);
         when(users.save(any())).thenAnswer(i -> i.getArgument(0));
         when(devices.save(any())).thenAnswer(i -> i.getArgument(0));
     }
@@ -121,7 +127,22 @@ class AccountServiceTest {
 
         assertThat(user.isActive()).isFalse();
         assertThat(user.getEmail()).isNull();
+        verify(organizations).leaveAllForDeletion(user);
+        verify(notifications).deleteAllFor(user.getId());
         verify(devices).deleteByUserId(user.getId());
         verify(admin).deleteUser("uid-1");
+    }
+
+    @Test
+    void ownerOfASharedGroupIsStoppedBeforeAnythingIsDeleted() {
+        User user = User.create(UUID.randomUUID(), "uid-1", "Ravi", NOW);
+        when(users.findByFirebaseUid("uid-1")).thenReturn(Optional.of(user));
+        org.mockito.Mockito.doThrow(new ApiException(org.springframework.http.HttpStatus.CONFLICT, "TRANSFER_OWNERSHIP_FIRST", "Club"))
+                .when(organizations).leaveAllForDeletion(user);
+
+        assertThatThrownBy(() -> service.deleteAccount(principal)).isInstanceOf(ApiException.class);
+
+        assertThat(user.isActive()).isTrue();
+        org.mockito.Mockito.verifyNoInteractions(admin, notifications);
     }
 }

@@ -125,6 +125,7 @@ data class QuickAddActions(val expense: () -> Unit, val income: () -> Unit, val 
 internal fun HomeScreen(
     user: AuthUser,
     onOpenSettings: () -> Unit,
+    onOpenNotifications: () -> Unit,
     onAddTransaction: () -> Unit,
     quickAdd: QuickAddActions,
     onOpenTodo: () -> Unit,
@@ -152,6 +153,7 @@ internal fun HomeScreen(
                     )
                 },
                 actions = {
+                    NotificationBell(onOpenNotifications)
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.home_settings))
                     }

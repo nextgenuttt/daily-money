@@ -59,28 +59,44 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** Camera and pickers for receipts; [onAdd] gets the file and whether it is a photo. */
+internal class ReceiptLaunchers(val takePhoto: () -> Unit, val choosePhoto: () -> Unit, val choosePdf: () -> Unit)
+
+@Composable
+internal fun rememberReceiptLaunchers(onAdd: (Uri, Boolean) -> Unit): ReceiptLaunchers {
+    val context = LocalContext.current
+    var cameraFile by rememberSaveable { mutableStateOf<String?>(null) }
+    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val path = cameraFile ?: return@rememberLauncherForActivityResult
+        if (ok) onAdd(Uri.fromFile(File(path)), true) else File(path).delete()
+    }
+    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let { onAdd(it, true) } }
+    val pickPdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { onAdd(it, false) } }
+    return ReceiptLaunchers(
+        takePhoto = {
+            val file = File(File(context.cacheDir, "camera").apply { mkdirs() }, "receipt_${System.currentTimeMillis()}.jpg")
+            cameraFile = file.absolutePath
+            takePicture.launch(FileProvider.getUriForFile(context, "${context.packageName}.files", file))
+        },
+        choosePhoto = { pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+        choosePdf = { pickPdf.launch(arrayOf("application/pdf")) },
+    )
+}
+
 /** Receipts row on the transaction screen: take a photo, pick a photo, or pick a PDF. */
 @Composable
 internal fun AttachmentSection(
     attachments: List<Attachment>,
     read: suspend (Attachment) -> ByteArray?,
     viewableUri: suspend (Attachment) -> String?,
-    onAdd: (Uri) -> Unit,
+    launchers: ReceiptLaunchers,
     onRemove: (Attachment) -> Unit,
     message: String?,
 ) {
     val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
-    var cameraFile by rememberSaveable { mutableStateOf<String?>(null) }
     var viewing by remember { mutableStateOf<Attachment?>(null) }
     val scope = rememberCoroutineScope()
-
-    val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        val path = cameraFile ?: return@rememberLauncherForActivityResult
-        if (ok) onAdd(Uri.fromFile(File(path))) else File(path).delete()
-    }
-    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let(onAdd) }
-    val pickPdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let(onAdd) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(R.string.receipts), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -105,17 +121,15 @@ internal fun AttachmentSection(
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.receipts_take_photo)) }, onClick = {
                             menuOpen = false
-                            val file = File(File(context.cacheDir, "camera").apply { mkdirs() }, "receipt_${System.currentTimeMillis()}.jpg")
-                            cameraFile = file.absolutePath
-                            takePicture.launch(FileProvider.getUriForFile(context, "${context.packageName}.files", file))
+                            launchers.takePhoto()
                         })
                         DropdownMenuItem(text = { Text(stringResource(R.string.receipts_choose_photo)) }, onClick = {
                             menuOpen = false
-                            pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            launchers.choosePhoto()
                         })
                         DropdownMenuItem(text = { Text(stringResource(R.string.receipts_choose_pdf)) }, onClick = {
                             menuOpen = false
-                            pickPdf.launch(arrayOf("application/pdf"))
+                            launchers.choosePdf()
                         })
                     }
                 }

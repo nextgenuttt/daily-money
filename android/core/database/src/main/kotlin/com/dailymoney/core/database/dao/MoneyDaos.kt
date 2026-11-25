@@ -1,12 +1,16 @@
 package com.dailymoney.core.database.dao
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import com.dailymoney.core.database.entity.AccountEntity
 import com.dailymoney.core.database.entity.AccountWithBalance
 import com.dailymoney.core.database.entity.BudgetEntity
 import com.dailymoney.core.database.entity.CategoryEntity
+import com.dailymoney.core.database.entity.CategoryRuleEntity
 import com.dailymoney.core.database.entity.TransactionEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -89,6 +93,50 @@ interface TransactionDao {
 
     @Query("SELECT COUNT(*) FROM transactions WHERE categoryId = :categoryId AND deletedAt IS NULL")
     suspend fun countForCategory(categoryId: String): Int
+
+    @Query("SELECT dedupeHash FROM transactions WHERE deletedAt IS NULL AND dedupeHash IN (:hashes)")
+    suspend fun importedHashes(hashes: List<String>): List<String>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(rows: List<TransactionEntity>): List<Long>
+
+    /** Adds the rows whose hash isn't already there (a second import of the same file adds nothing). */
+    @Transaction
+    suspend fun importAll(rows: List<TransactionEntity>): Int {
+        val existing = rows.mapNotNull { it.dedupeHash }.chunked(HASH_CHUNK).flatMap { importedHashes(it) }.toSet()
+        val seen = HashSet<String>()
+        val fresh = rows.filter { r -> r.dedupeHash == null || (r.dedupeHash !in existing && seen.add(r.dedupeHash)) }
+        return insertAll(fresh).count { it != -1L }
+    }
+
+    @Query(
+        """
+        SELECT note, categoryId FROM transactions
+        WHERE deletedAt IS NULL AND note IS NOT NULL AND categoryId IS NOT NULL AND type != 'TRANSFER' AND occurredAt >= :since
+        """,
+    )
+    suspend fun labelledNotes(since: Long): List<NoteCategory>
+}
+
+/** Well under SQLite's bound-variable limit. */
+private const val HASH_CHUNK = 500
+
+data class NoteCategory(val note: String, val categoryId: String)
+
+@Dao
+interface CategoryRuleDao {
+
+    @Query("SELECT * FROM category_rules ORDER BY pattern COLLATE NOCASE")
+    fun observeAll(): Flow<List<CategoryRuleEntity>>
+
+    @Upsert
+    suspend fun upsert(rule: CategoryRuleEntity)
+
+    @Query("DELETE FROM category_rules WHERE id = :id")
+    suspend fun delete(id: String)
+
+    @Query("DELETE FROM category_rules WHERE categoryId = :categoryId")
+    suspend fun deleteForCategory(categoryId: String)
 }
 
 @Dao
