@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="record_edit">Edit</string>
+    <string name="record_delete">Delete</string>
+    <string name="record_cancel">Cancel</string>
+    <string name="record_more_actions">More actions</string>
+    <string name="reminder_send_sms_now">Send SMS now to %1$s</string>
+    <string name="reminder_sms_sent">SMS sent from your phone.</string>
+    <string name="reminder_sms_no_permission">Allow "Send SMS" for Daily Money to send it directly, or use the SMS app below.</string>
+    <string name="reminder_sms_failed">The SMS couldn\'t be sent (no signal or no SIM?). Try the SMS app below.</string>
+    <string name="reminder_whatsapp">Remind on WhatsApp</string>
+    <string name="reminder_sms_app">Open in SMS app</string>
+</resources>

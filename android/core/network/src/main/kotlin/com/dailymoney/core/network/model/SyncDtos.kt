@@ -95,6 +95,7 @@ data class DecisionDto(
 data class SyncPullDto(
     val me: String? = null,
     val myUpiId: String? = null,
+    val myPhone: String? = null,
     val orgs: List<SyncOrgDto>,
     val changes: List<SyncChangeDto>,
     val nextCursor: Long,
@@ -118,7 +119,7 @@ data class SyncOrgDto(
 )
 
 @Serializable
-data class SyncMemberDto(val userId: String, val name: String, val upiId: String? = null)
+data class SyncMemberDto(val userId: String, val name: String, val upiId: String? = null, val phone: String? = null)
 
 @Serializable
 data class SettlementDto(
@@ -148,6 +149,12 @@ data class NewSettlementDto(
 
 @Serializable
 data class UpiRequestDto(val upiId: String?)
+
+@Serializable
+data class PhoneRequestDto(val phone: String?)
+
+@Serializable
+data class ReminderRequestDto(val userId: String, val amountMinor: Long, val currency: String)
 
 @Serializable
 data class SyncChangeDto(

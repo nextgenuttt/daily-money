@@ -56,7 +56,13 @@ import com.dailymoney.core.domain.sharing.SettlementRepository
 import com.dailymoney.core.domain.sharing.SharedExpenseRepository
 import com.dailymoney.core.domain.sharing.SyncScheduler
 import com.google.firebase.auth.FirebaseAuth
+import com.dailymoney.core.data.smart.AndroidSmsInbox
+import com.dailymoney.core.data.smart.AndroidSmsSender
+import com.dailymoney.core.domain.sharing.SmsSender
 import com.dailymoney.core.data.smart.ContentStatementReader
+import com.dailymoney.core.data.smart.RoomPaymentSuggestionRepository
+import com.dailymoney.core.domain.smart.PaymentSuggestionRepository
+import com.dailymoney.core.domain.smart.SmsInbox
 import com.dailymoney.core.data.smart.MlKitReceiptReader
 import com.dailymoney.core.data.smart.RoomCategoryRuleRepository
 import com.dailymoney.core.domain.smart.CategoryRuleRepository
@@ -164,6 +170,15 @@ abstract class DataModule {
 
     @Binds
     abstract fun statementFileReader(impl: ContentStatementReader): StatementFileReader
+
+    @Binds
+    abstract fun paymentSuggestionRepository(impl: RoomPaymentSuggestionRepository): PaymentSuggestionRepository
+
+    @Binds
+    abstract fun smsInbox(impl: AndroidSmsInbox): SmsInbox
+
+    @Binds
+    abstract fun smsSender(impl: AndroidSmsSender): SmsSender
 
     @Binds
     abstract fun categoryRuleRepository(impl: RoomCategoryRuleRepository): CategoryRuleRepository

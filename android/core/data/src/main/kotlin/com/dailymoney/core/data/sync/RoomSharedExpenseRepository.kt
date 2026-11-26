@@ -43,7 +43,7 @@ class RoomSharedExpenseRepository @Inject constructor(
         groups.map { g ->
             SharedGroup(
                 g.id, g.name, g.currency, g.canView, g.canAdd, g.canReport, g.canSplit,
-                byGroup[g.id].orEmpty().map { GroupPerson(it.userId, it.name, it.upiId, it.userId == me) },
+                byGroup[g.id].orEmpty().map { GroupPerson(it.userId, it.name, it.upiId, it.userId == me, it.phone) },
                 approvalMode = enumOr(g.approvalMode, ApprovalMode.INSTANT),
                 requiredApprovals = g.requiredApprovals,
                 isApprover = g.isApprover,
@@ -68,7 +68,8 @@ class RoomSharedExpenseRepository @Inject constructor(
     override fun observeMe(): Flow<Me?> = combine(
         db.stream { syncDao().observeState(SyncDao.ME) },
         db.stream { syncDao().observeState(SyncDao.MY_UPI) },
-    ) { me, upi -> me?.let { Me(it, upi?.ifBlank { null }) } }
+        db.stream { syncDao().observeState(SyncDao.MY_PHONE) },
+    ) { me, upi, phone -> me?.let { Me(it, upi?.ifBlank { null }, phone?.ifBlank { null }) } }
 
     private fun SharedExpenseEntity.toDomain(splits: List<SharedSplitEntity>, decisions: List<SharedDecisionEntity>) = SharedExpense(
         id = id,

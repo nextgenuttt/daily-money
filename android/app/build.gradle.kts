@@ -34,10 +34,33 @@ android {
         buildConfigField("String", "API_CERT_PINS", "\"${setting("API_CERT_PINS")}\"")
         manifestPlaceholders["authActionHost"] = setting("AUTH_ACTION_HOST", "dailymoney-app.web.app")
         buildConfigField("String", "PRIVACY_URL", "\"https://${setting("AUTH_ACTION_HOST", "dailymoney-app.web.app")}/privacy\"")
+        buildConfigField("String", "PAY_URL", "\"https://${setting("AUTH_ACTION_HOST", "dailymoney-app.web.app")}/pay\"")
     }
 
     buildFeatures {
         buildConfig = true
+    }
+
+    // "standard" never asks for SMS. "smsReader" adds automatic bank-SMS reading; it goes to Play only
+    // with an approved Permissions Declaration (SMS-based money management), see docs/06-PLAY-RELEASE.md.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("standard") {
+            dimension = "distribution"
+            buildConfigField("boolean", "SMS_READER", "false")
+            buildConfigField("boolean", "SMS_SENDER", "false")
+        }
+        create("smsReader") {
+            dimension = "distribution"
+            buildConfigField("boolean", "SMS_READER", "true")
+            buildConfigField("boolean", "SMS_SENDER", "false")
+        }
+        // Never uploaded to Play: SEND_SMS is only allowed there for default SMS apps. For direct installs.
+        create("personal") {
+            dimension = "distribution"
+            buildConfigField("boolean", "SMS_READER", "true")
+            buildConfigField("boolean", "SMS_SENDER", "true")
+        }
     }
 
     // Upload key for Play App Signing, kept out of git: RELEASE_STORE_FILE / _PASSWORD / RELEASE_KEY_ALIAS / _PASSWORD.

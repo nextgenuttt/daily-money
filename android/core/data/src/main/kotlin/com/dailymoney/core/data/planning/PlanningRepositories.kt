@@ -151,7 +151,7 @@ class RoomDebtRepository @Inject constructor(
             DebtStatus(
                 Debt(
                     d.id, d.person, runCatching { DebtDirection.valueOf(d.direction) }.getOrDefault(DebtDirection.LENT),
-                    d.principalMinor, d.currency, LocalDate.ofEpochDay(d.startEpochDay), d.dueEpochDay?.let(LocalDate::ofEpochDay), d.note,
+                    d.principalMinor, d.currency, LocalDate.ofEpochDay(d.startEpochDay), d.dueEpochDay?.let(LocalDate::ofEpochDay), d.note, d.phone, d.upiId,
                 ),
                 byDebt[d.id].orEmpty().map { DebtRepayment(it.id, it.debtId, it.amountMinor, LocalDate.ofEpochDay(it.epochDay), it.note) },
             )
@@ -165,7 +165,7 @@ class RoomDebtRepository @Inject constructor(
             DebtEntity(
                 debt.id, debt.person, debt.direction.name, debt.principalMinor, debt.currency, debt.startDate.toEpochDay(),
                 debt.dueDate?.toEpochDay(), debt.note,
-                createdAt = existing?.createdAt ?: now, updatedAt = now, version = (existing?.version ?: 0) + 1,
+                createdAt = existing?.createdAt ?: now, updatedAt = now, version = (existing?.version ?: 0) + 1, phone = debt.phone, upiId = debt.upiId,
             ),
         )
     }

@@ -58,6 +58,7 @@ data class SyncMemberEntity(
     val userId: String,
     val name: String,
     val upiId: String?,
+    @ColumnInfo(defaultValue = "NULL") val phone: String? = null,
 )
 
 @Entity(tableName = "settlements", indices = [Index("groupId")])

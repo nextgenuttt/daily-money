@@ -54,6 +54,11 @@ public class MeController {
         accounts.removeDevice(FirebasePrincipal.from(jwt), deviceId);
     }
 
+    @PutMapping("/me/phone")
+    public ProfileResponse changePhone(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody PhoneRequest request) {
+        return ProfileResponse.of(accounts.changePhone(FirebasePrincipal.from(jwt), request.phone()));
+    }
+
     @PutMapping("/me/upi")
     public ProfileResponse changeUpiId(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody UpiRequest request) {
         return ProfileResponse.of(accounts.changeUpiId(FirebasePrincipal.from(jwt), request.upiId()));
@@ -87,12 +92,15 @@ public class MeController {
     public record UpiRequest(@Size(max = 100) String upiId) {
     }
 
+    public record PhoneRequest(@Size(max = 24) String phone) {
+    }
+
     public record ProfileResponse(UUID id, String email, boolean emailVerified, String displayName,
-            List<String> authProviders, String defaultCurrency, String timeZone, String upiId, Instant createdAt) {
+            List<String> authProviders, String defaultCurrency, String timeZone, String upiId, String phone, Instant createdAt) {
 
         static ProfileResponse of(User u) {
             return new ProfileResponse(u.getId(), u.getEmail(), u.isEmailVerified(), u.getDisplayName(),
-                    List.of(u.getAuthProviders()), u.getDefaultCurrency(), u.getTimeZone(), u.getUpiId(), u.getCreatedAt());
+                    List.of(u.getAuthProviders()), u.getDefaultCurrency(), u.getTimeZone(), u.getUpiId(), u.getPhoneE164(), u.getCreatedAt());
         }
     }
 

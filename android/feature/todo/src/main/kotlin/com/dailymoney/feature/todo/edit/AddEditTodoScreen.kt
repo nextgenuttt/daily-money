@@ -1,5 +1,8 @@
 package com.dailymoney.feature.todo.edit
 
+import com.dailymoney.core.designsystem.component.rememberErrorScroller
+import com.dailymoney.core.designsystem.component.errorTarget
+import com.dailymoney.core.designsystem.component.DropdownField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -98,6 +101,8 @@ data class AddEditTodoUiState(
     val categories: List<String> = DEFAULT_TODO_CATEGORIES,
     val errors: Set<TodoError> = emptySet(),
     val saving: Boolean = false,
+    /** Bumped on every failed save so the form scrolls to the problem again. */
+    val attempts: Int = 0,
 )
 
 @HiltViewModel
@@ -155,7 +160,7 @@ class AddEditTodoViewModel @Inject constructor(
         meta.update { it.copy(saving = true) }
         viewModelScope.launch {
             val errors = saveTodo(t, isNew = route.todoId == null)
-            if (errors.isEmpty()) _close.send(Unit) else meta.update { it.copy(saving = false, errors = errors) }
+            if (errors.isEmpty()) _close.send(Unit) else meta.update { it.copy(saving = false, errors = errors, attempts = it.attempts + 1) }
         }
     }
 }
@@ -191,6 +196,7 @@ internal fun AddEditTodoScreen(onClose: () -> Unit, viewModel: AddEditTodoViewMo
             LinearProgressIndicator(Modifier.fillMaxWidth().padding(padding))
             return@Scaffold
         }
+        val errorScroller = rememberErrorScroller(state.attempts)
         Column(
             Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.screenGutter),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
@@ -206,7 +212,8 @@ internal fun AddEditTodoScreen(onClose: () -> Unit, viewModel: AddEditTodoViewMo
                     else -> null
                 },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
+                    .errorTarget(errorScroller, 1, TodoError.TITLE_REQUIRED in state.errors || TodoError.TITLE_TOO_LONG in state.errors),
             )
 
             Label(stringResource(R.string.todo_priority))
@@ -216,13 +223,14 @@ internal fun AddEditTodoScreen(onClose: () -> Unit, viewModel: AddEditTodoViewMo
                 }
             }
 
-            Label(stringResource(R.string.todo_category))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                state.categories.forEach { c ->
-                    FilterChip(t.category == c, { viewModel.update { it.copy(category = if (it.category == c) null else c) } }, { Text(c) })
-                }
-                FilterChip(false, { newCategory = "" }, { Text(stringResource(R.string.todo_new_category)) }, leadingIcon = { Icon(Icons.Filled.Add, null, Modifier.size(18.dp)) })
-            }
+            DropdownField(
+                label = stringResource(R.string.todo_category),
+                options = listOf<String?>(null) + state.categories,
+                selected = t.category,
+                onSelect = { c -> viewModel.update { it.copy(category = c) } },
+                optionLabel = { it ?: stringResource(R.string.todo_none) },
+                footer = "+ " + stringResource(R.string.todo_new_category) to { newCategory = "" },
+            )
 
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 OutlinedButton(onClick = { pickStart = true }, modifier = Modifier.weight(1f)) {
@@ -233,7 +241,10 @@ internal fun AddEditTodoScreen(onClose: () -> Unit, viewModel: AddEditTodoViewMo
                 }
             }
             if (TodoError.START_AFTER_DUE in state.errors) {
-                Text(stringResource(R.string.todo_err_start), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    stringResource(R.string.todo_err_start), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.errorTarget(errorScroller, 2, true),
+                )
             }
 
             if (t.dueDate == null) {
@@ -242,12 +253,17 @@ internal fun AddEditTodoScreen(onClose: () -> Unit, viewModel: AddEditTodoViewMo
                 OutlinedButton(onClick = { pickTime = true }, modifier = Modifier.fillMaxWidth()) {
                     Text("${stringResource(R.string.todo_time)}: ${t.dueTime?.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)) ?: stringResource(R.string.todo_no_time)}")
                 }
-                Label(stringResource(R.string.todo_repeat))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    FilterChip(t.recurrence == null, { viewModel.setRepeat(null) }, { Text(stringResource(R.string.todo_never)) })
-                    listOf(Frequency.DAILY to R.string.todo_daily, Frequency.WEEKLY to R.string.todo_weekly, Frequency.MONTHLY to R.string.todo_monthly, Frequency.YEARLY to R.string.todo_yearly)
-                        .forEach { (f, label) -> FilterChip(t.recurrence?.frequency == f, { viewModel.setRepeat(f) }, { Text(stringResource(label)) }) }
-                }
+                val repeatLabels = mapOf(
+                    Frequency.DAILY to R.string.todo_daily, Frequency.WEEKLY to R.string.todo_weekly,
+                    Frequency.MONTHLY to R.string.todo_monthly, Frequency.YEARLY to R.string.todo_yearly,
+                )
+                DropdownField(
+                    label = stringResource(R.string.todo_repeat),
+                    options = listOf<Frequency?>(null) + repeatLabels.keys,
+                    selected = t.recurrence?.frequency,
+                    onSelect = viewModel::setRepeat,
+                    optionLabel = { f -> stringResource(f?.let { repeatLabels.getValue(it) } ?: R.string.todo_never) },
+                )
                 Label(stringResource(R.string.todo_remind))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     val choices = if (t.dueTime != null) listOf(0 to R.string.todo_remind_at_time, 60 to R.string.todo_remind_1h, 1440 to R.string.todo_remind_1d)

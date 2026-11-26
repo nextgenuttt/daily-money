@@ -139,6 +139,7 @@ internal fun HomeScreen(
     onOpenDebts: () -> Unit,
     onOpenReminders: () -> Unit,
     onOpenReminder: (String, Long) -> Unit,
+    onOpenFoundPayments: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -178,6 +179,7 @@ internal fun HomeScreen(
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 return@Column
             }
+            FoundPaymentsCard(onOpenFoundPayments)
             MonthCard(data, state.currency, onOpenBudgets)
             state.reminders?.let { RemindersCard(it, onOpenReminders, onOpenReminder) }
             state.todos?.let { TasksCard(it, onOpenTodo, onOpenTask, viewModel::complete) }

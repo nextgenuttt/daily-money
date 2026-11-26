@@ -1,10 +1,18 @@
 plugins {
-    alias(libs.plugins.dailymoney.jvm.library)
+    alias(libs.plugins.dailymoney.kmp.library)
 }
 
-dependencies {
-    api(libs.javax.inject)
-    api(libs.kotlinx.coroutines.core)
-
-    testImplementation(libs.kotlinx.serialization.json)
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            api(libs.kotlinx.coroutines.core)
+        }
+        jvmMain.dependencies {
+            // Android wires use cases with Hilt; iOS will construct them directly.
+            api(libs.javax.inject)
+        }
+        jvmTest.dependencies {
+            implementation(libs.kotlinx.serialization.json)
+        }
+    }
 }

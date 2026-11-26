@@ -266,6 +266,8 @@ class SyncChaosTest {
         override suspend fun confirmSettlement(id: String): SettlementDto = error("unused")
         override suspend fun cancelSettlement(id: String): SettlementDto = error("unused")
         override suspend fun setUpiId(body: UpiRequestDto): Response<Unit> = error("unused")
+        override suspend fun setPhone(body: com.dailymoney.core.network.model.PhoneRequestDto): Response<Unit> = error("unused")
+        override suspend fun remind(orgId: String, body: com.dailymoney.core.network.model.ReminderRequestDto): Response<Unit> = error("unused")
         override suspend fun readNotifications(body: ReadNotificationsDto): Response<Unit> = error("unused")
         override suspend fun thread(expenseId: String): ThreadDto = error("unused")
         override suspend fun sendMessage(expenseId: String, body: NewMessageDto): MessageDto = error("unused")

@@ -10,14 +10,18 @@ What Phase 12 changed, what to fill in on the Play Console, and what still needs
 | `local.properties`: `RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`, `VERSION_CODE`, `VERSION_NAME` | android/ | to do |
 | `./gradlew bundleRelease` → upload the `.aab`; turn on **Play App Signing** | Play Console | to do |
 | `APPLICATION_ID` final (can't change after the first upload) | local.properties | to do |
-| Replace `SUPPORT_EMAIL`, `OWNER_NAME`, `EFFECTIVE_DATE` in `firebase/hosting/public/privacy` and `/delete-account`, then `firebase deploy --only hosting` | Firebase | to do |
+| Privacy + delete-account pages filled in (Vignesh, nextgenuttt@gmail.com, 25 Nov 2026) and deployed to dailymonyapp.web.app | Firebase | done |
 | Privacy policy URL `https://<host>/privacy`; account deletion URL `https://<host>/delete-account` | Play Console → App content | to do |
 | Backend env: `RATE_LIMIT_PER_MINUTE`, `RATE_LIMIT_BURST` (defaults 240 / 120); leave `API_DOCS_ENABLED` unset in production | server | defaults OK |
 | Optional: certificate pins in `API_CERT_PINS` (comma-separated `sha256/…`, always include a backup key) | local.properties | optional |
 
+Note: on the free Spark plan Firebase blocks editing email templates (`EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED`), so
+verification/reset links use Firebase's default page and then continue to `/auth/done`. That works; a custom action URL is optional.
+
 ## 2. Data Safety form (answers)
 
-- **Data collected:** Personal info → *Name*, *Email address* (account; required). Financial info → *Other
+- **Data collected:** Personal info → *Name*, *Email address* (account; required), *Phone number* (optional; shown
+  only to the user's group members for payment reminders). Financial info → *Other
   financial info* (expenses you share with a group, settlements, UPI ID; optional, only if you use groups).
   Messages → *Other in-app messages* (expense discussions; optional). App activity → none. Device or other IDs →
   *Device or other IDs* (random device ID + push token, for sign-in management and notifications).
@@ -39,7 +43,8 @@ What Phase 12 changed, what to fill in on the Play Console, and what still needs
 | `RECEIVE_BOOT_COMPLETED` | Re-arm reminders after a restart | normal |
 | `WAKE_LOCK`, `FOREGROUND_SERVICE` | WorkManager (library) | no foreground service types are used |
 | `USE_BIOMETRIC`, `USE_FINGERPRINT` | Credential Manager (library) | normal |
-| No `READ_SMS` / `RECEIVE_SMS`, no `CAMERA`, no storage permissions | bank SMS by share, photos through the system camera/picker, files through the system file picker | nothing to declare |
+| No `CAMERA`, no storage permissions | photos through the system camera/picker, files through the system file picker | nothing to declare |
+| `READ_SMS`, `RECEIVE_SMS` (**smsReader build only**) | opt-in "Find payments in bank SMS": reads bank/UPI sender IDs on the phone, suggests payments to add | Permissions Declaration Form → use case **SMS-based money management**; see §6 |
 
 Other declarations: **Financial features** → "personal finance / budgeting, no loans, no payments processed in
 the app" (UPI hand-off opens the user's own UPI app). **Target audience:** 18+. **Ads:** no.
@@ -87,3 +92,23 @@ the app" (UPI hand-off opens the user's own UPI app). **Target audience:** 18+. 
 - **Firebase App Check (Play Integrity)** on the backend: needs the Firebase console and the Play Console app.
 - Macrobenchmark + generated baseline profile, TalkBack/large-font pass, real-device offline test.
 - An external penetration test (this phase is a code-level review).
+
+## 6. SMS permission (the `smsReader` build)
+
+Two builds come from one codebase: `standard` (no SMS permission, share-to-add only) and `smsReader`
+(`./gradlew bundleSmsReaderRelease`). Upload `smsReader` only when applying for the permission; if Google
+refuses, publish `standard` and nothing else changes.
+
+How it behaves (what to show in the review video):
+1. Settings → **Find payments in bank SMS** (off by default) → disclosure dialog (what is read, what is skipped,
+   stays on the phone) → **Agree and continue** → Android's SMS permission prompt.
+2. It looks back 30 days, then watches new messages. Only business sender IDs are read (never phone numbers);
+   OTPs, offers and messages without an account/card/UPI/ref mention are skipped. Only parsed payment fields are
+   stored (`payment_suggestions`), never the message text, and nothing is uploaded.
+3. Home shows "N payments found in your SMS · Review"; a notification says "₹250 paid to Swiggy". Each one is
+   **Add** (opens the normal form, pre-filled; saved as source SMS) or **Dismiss**. Turning the switch off clears
+   the waiting list.
+
+Declaration form answers: core functionality = SMS-based money management (track spending from bank SMS);
+the store description must say this prominently; review instructions = the steps above; demo video = those
+steps on a phone with a real bank SMS (blur personal numbers); test account = a dedicated Firebase test user.

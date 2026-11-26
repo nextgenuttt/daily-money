@@ -54,18 +54,27 @@ public class FirebaseAdminConfig {
         return new FcmPushGateway(FirebaseMessaging.getInstance(app));
     }
 
+    /**
+     * A key file locally; on Google Cloud (Cloud Run) set FIREBASE_SERVICE_ACCOUNT_FILE=google to use the
+     * service's own identity instead, so no key file is ever uploaded.
+     */
     private static synchronized FirebaseApp app(FirebaseProperties properties) throws IOException {
         String file = properties.serviceAccountFile();
         if (file == null || file.isBlank()) return null;
         if (!FirebaseApp.getApps().isEmpty()) return FirebaseApp.getInstance();
-        try (InputStream in = new FileInputStream(file)) {
-            FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(in))
-                    .setProjectId(properties.projectId())
-                    .build();
-            return FirebaseApp.initializeApp(options);
+        GoogleCredentials credentials;
+        if (USE_PLATFORM_IDENTITY.equals(file)) {
+            credentials = GoogleCredentials.getApplicationDefault();
+        } else {
+            try (InputStream in = new FileInputStream(file)) {
+                credentials = GoogleCredentials.fromStream(in);
+            }
         }
+        FirebaseOptions options = FirebaseOptions.builder().setCredentials(credentials).setProjectId(properties.projectId()).build();
+        return FirebaseApp.initializeApp(options);
     }
+
+    private static final String USE_PLATFORM_IDENTITY = "google";
 
     /** Data-only, collapsible: many changes while a phone is asleep wake it once. */
     private static final class FcmPushGateway implements PushGateway {

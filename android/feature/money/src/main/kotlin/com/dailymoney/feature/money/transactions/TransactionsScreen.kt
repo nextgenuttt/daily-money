@@ -1,5 +1,6 @@
 package com.dailymoney.feature.money.transactions
 
+import com.dailymoney.core.designsystem.component.RecordActions
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -177,7 +178,14 @@ internal fun TransactionsScreen(
                         )
                     }
                     items(entries, key = { it.transaction.id }) { details ->
-                        TransactionRow(details, onClick = { onOpen(details.transaction.id) })
+                        val id = details.transaction.id
+                        RecordActions(
+                            onOpen = { onOpen(id) },
+                            onEdit = { onOpen(id) },
+                            onDelete = { viewModel.delete(id) },
+                            deleteTitle = stringResource(R.string.edit_delete_title),
+                            deleteBody = stringResource(if (details.transaction.sharing != null) R.string.delete_shared_body else R.string.edit_delete_body),
+                        ) { m -> TransactionRow(details, modifier = m) }
                     }
                 }
             }
@@ -198,7 +206,7 @@ private fun SummaryCard(state: TransactionsUiState) {
 }
 
 @Composable
-internal fun TransactionRow(details: TransactionDetails, onClick: () -> Unit) {
+internal fun TransactionRow(details: TransactionDetails, modifier: Modifier) {
     val t = details.transaction
     val isTransfer = t.type == TransactionType.TRANSFER
     val title = when {
@@ -217,7 +225,7 @@ internal fun TransactionRow(details: TransactionDetails, onClick: () -> Unit) {
         },
         trailingContent = { MoneyText(t.amountMinor, t.currency, type = t.type) },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = modifier,
     )
 }
 

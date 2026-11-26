@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -301,9 +303,9 @@ internal fun ReminderDetailScreen(onBack: () -> Unit, onEdit: (String) -> Unit, 
                 Text(r.kind.question(), style = MaterialTheme.typography.titleMedium)
                 PrimaryButton(r.kind.completeAction(), viewModel::startComplete)
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    OutlinedButton(onClick = viewModel::snooze, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.det_snooze)) }
-                    OutlinedButton(onClick = { pickRescheduleDate = true }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.det_reschedule)) }
-                    OutlinedButton(onClick = viewModel::skip, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.det_skip)) }
+                    ActionButton(stringResource(R.string.det_snooze), viewModel::snooze, Modifier.weight(1f))
+                    ActionButton(stringResource(R.string.det_reschedule), { pickRescheduleDate = true }, Modifier.weight(1f))
+                    ActionButton(stringResource(R.string.det_skip), viewModel::skip, Modifier.weight(1f))
                 }
                 if (r.steps.isNotEmpty()) {
                     Text(stringResource(R.string.rem_steps), style = MaterialTheme.typography.titleMedium)
@@ -450,5 +452,13 @@ private fun PayDialog(p: PayForm, state: DetailUiState, viewModel: ReminderDetai
             },
             dismissButton = { TextButton(onClick = { pickDate = false }) { Text(stringResource(R.string.rem_cancel)) } },
         ) { DatePicker(pickerState) }
+    }
+}
+
+/** Three side by side: one line each, so the row stays even with long words or large text. */
+@Composable
+private fun ActionButton(label: String, onClick: () -> Unit, modifier: Modifier) {
+    OutlinedButton(onClick = onClick, modifier = modifier, contentPadding = PaddingValues(horizontal = Spacing.sm, vertical = Spacing.sm)) {
+        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

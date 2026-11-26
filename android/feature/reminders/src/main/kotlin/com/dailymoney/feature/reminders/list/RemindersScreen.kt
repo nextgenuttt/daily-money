@@ -1,5 +1,7 @@
 package com.dailymoney.feature.reminders.list
 
+import com.dailymoney.core.domain.reminders.DeleteReminderUseCase
+import com.dailymoney.core.designsystem.component.RecordActions
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -96,8 +98,14 @@ class RemindersViewModel @Inject constructor(
     observeOverview: ObserveRemindersOverviewUseCase,
     private val complete: CompleteOccurrenceUseCase,
     private val reopen: ReopenOccurrenceUseCase,
+    private val deleteReminder: DeleteReminderUseCase,
     private val clock: Clock,
 ) : ViewModel() {
+
+    fun delete(reminderId: String) {
+        viewModelScope.launch { deleteReminder(reminderId) }
+    }
+
 
     private val filter = MutableStateFlow(ReminderFilter.ALL)
     private val _undo = Channel<Occurrence>(Channel.BUFFERED)
@@ -131,9 +139,11 @@ internal fun RemindersScreen(
     onCalendar: () -> Unit,
     onOpen: (Occurrence, Boolean) -> Unit,
     onTodo: () -> Unit,
+    onEdit: (String) -> Unit,
     viewModel: RemindersViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val actions = RowActions(edit = onEdit, delete = viewModel::delete)
     val snackbar = remember { SnackbarHostState() }
     val doneText = stringResource(R.string.rem_completed_snack)
     val undoText = stringResource(R.string.rem_undo)
@@ -201,12 +211,12 @@ internal fun RemindersScreen(
                 if (occ.reminder.kind.hasAmount) onOpen(occ, true) else viewModel.quickComplete(occ)
             }
             val show = { f: ReminderFilter -> state.filter == ReminderFilter.ALL || state.filter == f }
-            if (show(ReminderFilter.OVERDUE)) section(R.string.rem_overdue, o.overdue, state.today, onOpen, onComplete, overdue = true)
+            if (show(ReminderFilter.OVERDUE)) section(R.string.rem_overdue, o.overdue, state.today, onOpen, onComplete, overdue = true, actions = actions)
             if (show(ReminderFilter.UPCOMING)) {
-                section(R.string.rem_today, o.today, state.today, onOpen, onComplete)
-                section(R.string.rem_upcoming, o.upcoming, state.today, onOpen, onComplete)
+                section(R.string.rem_today, o.today, state.today, onOpen, onComplete, actions = actions)
+                section(R.string.rem_upcoming, o.upcoming, state.today, onOpen, onComplete, actions = actions)
             }
-            if (state.filter == ReminderFilter.DONE) section(R.string.rem_done, o.done, state.today, onOpen, null)
+            if (state.filter == ReminderFilter.DONE) section(R.string.rem_done, o.done, state.today, onOpen, null, actions = actions)
             val filteredEmpty = when (state.filter) {
                 ReminderFilter.ALL -> false
                 ReminderFilter.OVERDUE -> o.overdue.isEmpty()
@@ -254,6 +264,7 @@ private fun LazyListScope.section(
     onOpen: (Occurrence, Boolean) -> Unit,
     onComplete: ((Occurrence) -> Unit)?,
     overdue: Boolean = false,
+    actions: RowActions? = null,
 ) {
     if (items.isEmpty()) return
     item(key = "h$title") {
@@ -264,13 +275,19 @@ private fun LazyListScope.section(
             modifier = Modifier.padding(top = Spacing.md, bottom = Spacing.xs),
         )
     }
-    items(items, key = { "${it.reminder.id}:${it.originalDate}:$title" }) { o -> OccurrenceRow(o, today, onOpen, onComplete) }
+    items(items, key = { "${it.reminder.id}:${it.originalDate}:$title" }) { o -> OccurrenceRow(o, today, onOpen, onComplete, actions) }
 }
 
 @Composable
-internal fun OccurrenceRow(o: Occurrence, today: LocalDate, onOpen: (Occurrence, Boolean) -> Unit, onComplete: ((Occurrence) -> Unit)?) {
+internal fun OccurrenceRow(
+    o: Occurrence,
+    today: LocalDate,
+    onOpen: (Occurrence, Boolean) -> Unit,
+    onComplete: ((Occurrence) -> Unit)?,
+    actions: RowActions? = null,
+) {
     val r = o.reminder
-    ListItem(
+    val row: @Composable (Modifier) -> Unit = { m -> ListItem(
         headlineContent = { Text(r.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
             Text(
@@ -294,6 +311,21 @@ internal fun OccurrenceRow(o: Occurrence, today: LocalDate, onOpen: (Occurrence,
             }
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
-        modifier = Modifier.clickable { onOpen(o, false) },
-    )
+        modifier = m,
+    ) }
+    if (actions == null) {
+        row(Modifier.clickable { onOpen(o, false) })
+    } else {
+        RecordActions(
+            onOpen = { onOpen(o, false) },
+            onEdit = { actions.edit(r.id) },
+            onDelete = { actions.delete(r.id) },
+            deleteTitle = stringResource(R.string.det_delete_title),
+            deleteBody = stringResource(R.string.det_delete_body),
+            content = row,
+        )
+    }
 }
+
+/** Long-press Edit / Delete on a list row; the id is the reminder's. */
+class RowActions(val edit: (String) -> Unit, val delete: (String) -> Unit)

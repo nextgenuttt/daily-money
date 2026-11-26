@@ -25,6 +25,7 @@ fun NavGraphBuilder.remindersGraph(navController: NavController, onTodo: () -> U
             onCalendar = { navController.navigate(CalendarRoute) },
             onOpen = { o, complete -> navController.navigate(ReminderDetailRoute(o.reminder.id, o.originalDate.toEpochDay(), complete)) },
             onTodo = onTodo,
+            onEdit = { id -> navController.navigate(AddEditReminderRoute(reminderId = id)) },
         )
     }
     composable<CalendarRoute> {

@@ -19,6 +19,7 @@ google-services.json
 *.jks
 .env
 .env.*
+!.env.example
 firebase-service-account*.json
 backend/src/main/resources/application-local.yml
 

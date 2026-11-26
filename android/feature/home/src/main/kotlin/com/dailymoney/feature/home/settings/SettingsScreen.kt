@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.SettingsBackupRestore
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.Policy
@@ -83,7 +85,7 @@ internal fun SettingsScreen(
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
             if (state.working) LinearProgressIndicator(Modifier.fillMaxWidth())
             Text(
                 stringResource(R.string.settings_account),
@@ -97,12 +99,14 @@ internal fun SettingsScreen(
                 leadingContent = { Icon(Icons.Filled.AccountCircle, contentDescription = null) },
             )
             UpiIdItem()
+            PhoneItem()
             ListItem(
                 headlineContent = { Text(stringResource(R.string.notif_settings_title)) },
                 supportingContent = { Text(stringResource(R.string.notif_settings_entry_hint)) },
                 leadingContent = { Icon(Icons.Filled.Notifications, contentDescription = null) },
                 modifier = Modifier.clickable(onClick = onNotifications),
             )
+            SmsReaderSetting()
             HorizontalDivider()
             Text(
                 stringResource(R.string.settings_your_data),

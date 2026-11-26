@@ -1,5 +1,7 @@
 package com.dailymoney.feature.todo.list
 
+import com.dailymoney.core.domain.todo.UpdateTodoUseCase
+import com.dailymoney.core.designsystem.component.RecordActions
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -118,8 +120,14 @@ class TodoListViewModel @Inject constructor(
     private val reopen: ReopenTodoUseCase,
     private val quickAdd: QuickAddTodoUseCase,
     private val scheduler: ReminderScheduler,
+    private val update: UpdateTodoUseCase,
     private val clock: Clock,
 ) : ViewModel() {
+
+    fun delete(todoId: String) {
+        viewModelScope.launch { update.delete(todoId) }
+    }
+
 
     private val filter = MutableStateFlow(TodoFilter.ALL)
     private val category = MutableStateFlow<String?>(null)
@@ -181,6 +189,7 @@ internal fun TodoListScreen(
     onReminders: () -> Unit,
     onAdd: () -> Unit,
     onOpen: (String) -> Unit,
+    onEdit: (String) -> Unit,
     viewModel: TodoListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -245,7 +254,7 @@ internal fun TodoListScreen(
             fun LazyListScope.sec(title: Int, list: List<TodoListItem>, overdue: Boolean = false) {
                 val items = pick(list)
                 shown += items.size
-                section(title, items, state.today, viewModel::toggle, onOpen, overdue)
+                section(title, items, state.today, viewModel::toggle, onOpen, overdue, onEdit, viewModel::delete)
             }
             if (show(TodoFilter.TODAY)) {
                 sec(R.string.todo_overdue, o.overdue, overdue = true)
@@ -306,6 +315,8 @@ private fun LazyListScope.section(
     onToggle: (TodoListItem) -> Unit,
     onOpen: (String) -> Unit,
     overdue: Boolean,
+    onEdit: (String) -> Unit,
+    onDelete: (String) -> Unit,
 ) {
     if (items.isEmpty()) return
     item(key = "h$title") {
@@ -316,14 +327,21 @@ private fun LazyListScope.section(
             modifier = Modifier.padding(top = Spacing.md, bottom = Spacing.xs),
         )
     }
-    items(items, key = { "${it.todo.id}:$title" }) { TodoRow(it, today, onToggle, onOpen) }
+    items(items, key = { "${it.todo.id}:$title" }) { TodoRow(it, today, onToggle, onOpen, onEdit, onDelete) }
 }
 
 @Composable
-fun TodoRow(item: TodoListItem, today: LocalDate, onToggle: (TodoListItem) -> Unit, onOpen: (String) -> Unit) {
+fun TodoRow(
+    item: TodoListItem,
+    today: LocalDate,
+    onToggle: (TodoListItem) -> Unit,
+    onOpen: (String) -> Unit,
+    onEdit: ((String) -> Unit)? = null,
+    onDelete: ((String) -> Unit)? = null,
+) {
     val t = item.todo
     val status = LocalStatusColors.current
-    ListItem(
+    val row: @Composable (Modifier) -> Unit = { m -> ListItem(
         headlineContent = {
             Text(
                 t.title,
@@ -364,8 +382,20 @@ fun TodoRow(item: TodoListItem, today: LocalDate, onToggle: (TodoListItem) -> Un
             }
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
-        modifier = Modifier.clickable { onOpen(t.id) },
-    )
+        modifier = m,
+    ) }
+    if (onEdit == null || onDelete == null) {
+        row(Modifier.clickable { onOpen(t.id) })
+    } else {
+        RecordActions(
+            onOpen = { onOpen(t.id) },
+            onEdit = { onEdit(t.id) },
+            onDelete = { onDelete(t.id) },
+            deleteTitle = stringResource(R.string.todo_delete_title),
+            deleteBody = stringResource(R.string.todo_delete_body),
+            content = row,
+        )
+    }
 }
 
 @Composable

@@ -58,4 +58,12 @@
         <item quantity="one">You have %d unread update.</item>
         <item quantity="other">You have %d unread updates.</item>
     </plurals>
+    <string name="channel_found_payments">Payments found in SMS</string>
+    <string name="sms_found_title">Payment found in SMS · tap to add</string>
+    <string name="sms_found_out_to">%1$s paid to %2$s</string>
+    <string name="sms_found_out">%1$s paid</string>
+    <string name="sms_found_in_from">%1$s received from %2$s</string>
+    <string name="sms_found_in">%1$s received</string>
+    <string name="notif_pay_reminder_title">Reminder from %1$s</string>
+    <string name="notif_pay_reminder_body">You owe %1$s %2$s. Tap to settle up.</string>
 </resources>

@@ -105,3 +105,21 @@ data class AccountWithBalance(
     @Embedded val account: AccountEntity,
     val balanceMinor: Long,
 )
+
+/** A payment found in a bank SMS (Phase 12 SMS build). Only parsed fields; the message text is never stored. */
+@Entity(tableName = "payment_suggestions", indices = [Index("status")])
+data class PaymentSuggestionEntity(
+    @PrimaryKey val id: String,
+    val sender: String,
+    /** DEBIT or CREDIT. */
+    val type: String,
+    val amountMinor: Long,
+    val currency: String,
+    val counterparty: String?,
+    /** The payment's date as epoch day. */
+    val epochDay: Long,
+    val accountHint: String?,
+    val receivedAt: Long,
+    /** NEW, ADDED or DISMISSED. */
+    val status: String,
+)

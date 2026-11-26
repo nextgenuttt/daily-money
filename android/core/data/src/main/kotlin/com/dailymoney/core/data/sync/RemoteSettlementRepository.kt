@@ -8,10 +8,13 @@ import com.dailymoney.core.domain.money.Ids
 import com.dailymoney.core.domain.sharing.SettleMethod
 import com.dailymoney.core.domain.sharing.SettleResult
 import com.dailymoney.core.domain.sharing.SettlementRepository
+import com.dailymoney.core.domain.sharing.SyncScheduler
 import com.dailymoney.core.network.SyncApi
 import com.dailymoney.core.network.model.NewSettlementDto
 import com.dailymoney.core.network.model.ProblemDto
 import com.dailymoney.core.network.model.SettlementDto
+import com.dailymoney.core.network.model.PhoneRequestDto
+import com.dailymoney.core.network.model.ReminderRequestDto
 import com.dailymoney.core.network.model.UpiRequestDto
 import java.io.IOException
 import javax.inject.Inject
@@ -29,6 +32,7 @@ class RemoteSettlementRepository @Inject constructor(
     private val db: DatabaseManager,
     private val config: AppConfig,
     private val json: Json,
+    private val sync: SyncScheduler,
 ) : SettlementRepository {
 
     override suspend fun record(
@@ -44,6 +48,20 @@ class RemoteSettlementRepository @Inject constructor(
         val response = api.setUpiId(UpiRequestDto(cleaned))
         if (!response.isSuccessful) throw HttpException(response)
         db.get().syncDao().setState(SyncStateEntity(SyncDao.MY_UPI, cleaned.orEmpty()))
+    }
+
+    /** The server returns the normalised number; the next pull stores it, so read it back from there. */
+    override suspend fun setPhone(phone: String?) = call {
+        val cleaned = phone?.trim()?.ifEmpty { null }
+        val response = api.setPhone(PhoneRequestDto(cleaned))
+        if (!response.isSuccessful) throw HttpException(response)
+        sync.requestSync()
+        if (cleaned == null) db.get().syncDao().setState(SyncStateEntity(SyncDao.MY_PHONE, ""))
+    }
+
+    override suspend fun remind(groupId: String, userId: String, amountMinor: Long, currency: String) = call {
+        val response = api.remind(groupId, ReminderRequestDto(userId, amountMinor, currency))
+        if (!response.isSuccessful) throw HttpException(response)
     }
 
     private suspend fun keep(dto: SettlementDto) = db.get().syncDao().upsertSettlement(dto.toEntity())

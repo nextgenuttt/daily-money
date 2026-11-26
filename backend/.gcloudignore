@@ -1,0 +1,10 @@
+# Secrets and local files never leave this Mac.
+.env
+.env.*
+!.env.example
+*.json
+build/
+.gradle/
+.idea/
+*.iml
+deploy/

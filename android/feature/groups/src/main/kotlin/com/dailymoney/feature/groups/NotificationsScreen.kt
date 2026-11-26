@@ -179,6 +179,7 @@ private fun AppNotification.headline(): String {
         NotificationType.SETTLEMENT_CONFIRMED -> stringResource(R.string.notifications_settle_confirmed, actor, money("amountMinor"))
         NotificationType.SETTLEMENT_CANCELLED -> stringResource(R.string.notifications_settle_cancelled, actor, money("amountMinor"))
         NotificationType.MESSAGE -> stringResource(R.string.notifications_message, actor)
+        NotificationType.PAYMENT_REMINDER -> stringResource(R.string.notifications_pay_reminder, actor, money("amountMinor"))
     }
 }
 
@@ -189,7 +190,7 @@ private fun AppNotification.detail(): String {
         NotificationType.MESSAGE -> "$what: ${params["preview"].orEmpty()}"
         NotificationType.EXPENSE_REJECTED -> "$what · ${money("amountMinor")} · ${params["reason"].orEmpty()}"
         NotificationType.SETTLEMENT_REQUESTED, NotificationType.SETTLEMENT_RECORDED,
-        NotificationType.SETTLEMENT_CONFIRMED, NotificationType.SETTLEMENT_CANCELLED -> params["group"].orEmpty()
+        NotificationType.SETTLEMENT_CONFIRMED, NotificationType.SETTLEMENT_CANCELLED, NotificationType.PAYMENT_REMINDER -> params["group"].orEmpty()
         else -> "$what · ${money("amountMinor")}"
     }
 }

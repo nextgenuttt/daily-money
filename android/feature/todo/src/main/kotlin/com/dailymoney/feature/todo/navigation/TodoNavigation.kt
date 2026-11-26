@@ -20,6 +20,7 @@ fun NavGraphBuilder.todoGraph(navController: NavController, onReminders: () -> U
             onReminders = onReminders,
             onAdd = { navController.navigate(AddEditTodoRoute()) },
             onOpen = { navController.navigate(TodoDetailRoute(it)) },
+            onEdit = { navController.navigate(AddEditTodoRoute(todoId = it)) },
         )
     }
     composable<AddEditTodoRoute> { AddEditTodoScreen(onClose = back) }

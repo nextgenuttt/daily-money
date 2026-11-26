@@ -20,6 +20,9 @@ object AppModule {
         authContinueUrl = BuildConfig.AUTH_CONTINUE_URL,
         apiBaseUrl = BuildConfig.API_BASE_URL,
         privacyPolicyUrl = BuildConfig.PRIVACY_URL,
+        payPageUrl = BuildConfig.PAY_URL,
+        smsReaderBuild = BuildConfig.SMS_READER,
+        smsSendBuild = BuildConfig.SMS_SENDER,
         apiCertificatePins = BuildConfig.API_CERT_PINS.split(',').map { it.trim() }.filter { it.isNotEmpty() },
     )
 }

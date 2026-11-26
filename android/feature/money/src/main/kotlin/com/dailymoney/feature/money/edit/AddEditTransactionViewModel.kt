@@ -32,7 +32,9 @@ import com.dailymoney.core.domain.money.TransactionSource
 import com.dailymoney.core.domain.smart.BankSmsParser
 import com.dailymoney.core.domain.smart.Categorizer
 import com.dailymoney.core.domain.smart.LoadCategorizerUseCase
+import com.dailymoney.core.domain.smart.PaymentSuggestionRepository
 import com.dailymoney.core.domain.smart.ScanReceiptUseCase
+import com.dailymoney.core.domain.smart.SuggestionStatus
 import com.dailymoney.core.domain.sharing.ApprovalStatus
 import com.dailymoney.core.domain.sharing.GroupPerson
 import com.dailymoney.core.domain.sharing.ShareStatus
@@ -153,6 +155,8 @@ data class AddEditUiState(
     val share: ShareUi = ShareUi(),
     val scanning: Boolean = false,
     val assist: AssistMessage? = null,
+    /** Bumped on every failed save, so the screen scrolls to the problem even when it's the same one again. */
+    val invalidAttempts: Int = 0,
     /** A category guessed from the note, offered while none is chosen. */
     val suggestedCategory: Category? = null,
 )
@@ -170,6 +174,7 @@ class AddEditTransactionViewModel @Inject constructor(
     sharedExpenses: SharedExpenseRepository,
     private val scanReceipt: ScanReceiptUseCase,
     private val loadCategorizer: LoadCategorizerUseCase,
+    private val suggestions: PaymentSuggestionRepository,
     config: AppConfig,
     private val clock: Clock,
 ) : ViewModel() {
@@ -285,6 +290,7 @@ class AddEditTransactionViewModel @Inject constructor(
                 val firstAccount = accounts.observeBalances().first().firstOrNull { !it.account.archived }?.account?.id
                 form.update { if (it.accountId == null) it.copy(accountId = firstAccount) else it }
                 route.sharedText?.let { fillFromMessage(it) }
+                route.suggestionId?.let { fillFromSuggestion(it) }
             }
         }
     }
@@ -302,6 +308,7 @@ class AddEditTransactionViewModel @Inject constructor(
     fun setDate(date: LocalDate) = form.update { it.copy(date = date) }
     fun setNote(note: String) = form.update { it.copy(note = note) }.also { clearError(TransactionError.NOTE_TOO_LONG) }
     fun setPaymentMethod(method: PaymentMethod) = form.update { it.copy(paymentMethod = if (it.paymentMethod == method) null else method) }
+    fun choosePaymentMethod(method: PaymentMethod?) = form.update { it.copy(paymentMethod = method) }
     fun setRepeat(frequency: Frequency?) = form.update { it.copy(repeat = frequency) }
 
     fun setShareGroup(groupId: String?) {
@@ -391,6 +398,14 @@ class AddEditTransactionViewModel @Inject constructor(
         meta.update { it.copy(assist = AssistMessage.MESSAGE_READ) }
     }
 
+    private suspend fun fillFromSuggestion(id: String) {
+        val found = suggestions.get(id) ?: return
+        val p = found.payment
+        prefill(p.type, p.amountMinor, p.date, p.counterparty)
+        source = TransactionSource.SMS
+        meta.update { it.copy(assist = AssistMessage.MESSAGE_READ) }
+    }
+
     /** Only fills what the user hasn't typed yet. */
     private fun prefill(type: TransactionType, amountMinor: Long, date: LocalDate?, note: String?) {
         form.update { f ->
@@ -429,6 +444,7 @@ class AddEditTransactionViewModel @Inject constructor(
             when (val result = saveTransaction(draft, existingOccurredAt)) {
                 is SaveResult.Saved -> {
                     saved = true
+                    route.suggestionId?.let { suggestions.setStatus(it, SuggestionStatus.ADDED) }
                     val repeat = f.repeat
                     if (repeat != null && transactionId == null) {
                         val t = result.transaction
@@ -437,7 +453,7 @@ class AddEditTransactionViewModel @Inject constructor(
                     }
                     _closeEvents.send(Unit)
                 }
-                is SaveResult.Invalid -> meta.update { it.copy(saving = false, errors = result.errors) }
+                is SaveResult.Invalid -> meta.update { it.copy(saving = false, errors = result.errors, invalidAttempts = it.invalidAttempts + 1) }
             }
         }
     }

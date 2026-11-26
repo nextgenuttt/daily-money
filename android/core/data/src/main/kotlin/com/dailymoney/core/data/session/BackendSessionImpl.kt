@@ -13,6 +13,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
@@ -24,8 +26,15 @@ class BackendSessionImpl @Inject constructor(
     private val auth: FirebaseAuth,
 ) : BackendSession {
 
+    /** Sign-in and a new push token can both ask at once on first launch; one call at a time. */
+    private val bootstrapLock = Mutex()
+
     override suspend fun bootstrap(): Boolean {
         if (!config.backendEnabled) return true
+        return bootstrapLock.withLock { register() }
+    }
+
+    private suspend fun register(): Boolean {
         return safe {
             api.bootstrap(
                 BootstrapRequestDto(

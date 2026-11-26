@@ -37,6 +37,7 @@ data class PullPage(
     val members: List<SyncMemberEntity> = emptyList(),
     val me: String? = null,
     val myUpiId: String? = null,
+    val myPhone: String? = null,
 )
 
 object SyncStatus {
@@ -286,6 +287,7 @@ interface SyncDao {
         insertMembers(page.members)
         page.me?.let { setState(SyncStateEntity(ME, it)) }
         setState(SyncStateEntity(MY_UPI, page.myUpiId.orEmpty()))
+        setState(SyncStateEntity(MY_PHONE, page.myPhone.orEmpty()))
         val hidden = page.groups.filter { !it.canView }.map { it.id }
         if (hidden.isNotEmpty()) deleteOthersIn(hidden)
 
@@ -329,5 +331,6 @@ interface SyncDao {
         const val CURSOR = "cursor"
         const val ME = "me"
         const val MY_UPI = "my_upi"
+        const val MY_PHONE = "my_phone"
     }
 }

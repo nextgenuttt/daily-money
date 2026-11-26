@@ -29,6 +29,7 @@ object Channels {
     const val APPROVALS = "approvals"
     const val GROUP_ACTIVITY = "group_activity"
     const val MESSAGES = "messages"
+    const val FOUND_PAYMENTS = "found_payments"
 
     fun ensure(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -40,6 +41,7 @@ object Channels {
             NotificationChannel(APPROVALS, context.getString(R.string.channel_approvals), NotificationManager.IMPORTANCE_HIGH),
             NotificationChannel(MESSAGES, context.getString(R.string.channel_messages), NotificationManager.IMPORTANCE_DEFAULT),
             NotificationChannel(GROUP_ACTIVITY, context.getString(R.string.channel_group_activity), NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(FOUND_PAYMENTS, context.getString(R.string.channel_found_payments), NotificationManager.IMPORTANCE_DEFAULT),
         ).forEach {
             // Amounts are hidden on the lock screen; the public version only says what kind of alert it is.
             it.lockscreenVisibility = NotificationCompat.VISIBILITY_PRIVATE
@@ -61,6 +63,7 @@ object AppLinks {
     const val EXTRA_TODO_ID = "dm_todo_id"
     const val OPEN_NOTIFICATION = "notification"
     const val EXTRA_NOTIFICATION_ID = "dm_notification_id"
+    const val OPEN_FOUND_PAYMENTS = "found_payments"
 
     /** [id] null opens the notification centre itself (the evening summary). */
     fun openNotification(context: Context, id: String?): PendingIntent {

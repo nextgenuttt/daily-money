@@ -33,6 +33,7 @@ import com.dailymoney.feature.home.navigation.HomeLinks
 import com.dailymoney.feature.home.navigation.HomeRoute
 import com.dailymoney.feature.home.navigation.homeGraph
 import com.dailymoney.feature.money.navigation.AddEditTransactionRoute
+import com.dailymoney.feature.money.navigation.FoundPaymentsRoute
 import com.dailymoney.feature.money.navigation.BudgetsRoute
 import com.dailymoney.feature.money.navigation.DebtsRoute
 import com.dailymoney.feature.money.navigation.GoalsRoute
@@ -77,6 +78,7 @@ internal fun MainShell(user: AuthUser, openRequest: OpenRequest?, onOpenHandled:
             is OpenRequest.Invite -> navController.navigate(JoinGroupRoute(req.token))
             is OpenRequest.Todo -> navController.navigate(TodoDetailRoute(req.id))
             is OpenRequest.Notification -> navController.navigate(NotificationsRoute(req.id))
+            OpenRequest.FoundPayments -> navController.navigate(FoundPaymentsRoute)
             is OpenRequest.AddFromText -> navController.navigate(AddEditTransactionRoute(sharedText = req.text))
         }
         onOpenHandled()
@@ -123,6 +125,7 @@ internal fun MainShell(user: AuthUser, openRequest: OpenRequest?, onOpenHandled:
                         reminders = { navController.navigateToTab(RemindersRoute) },
                         openReminder = { id, day -> navController.navigate(ReminderDetailRoute(id, day)) },
                         notifications = { navController.navigate(NotificationsRoute()) },
+                        foundPayments = { navController.navigate(FoundPaymentsRoute) },
                     ),
                 )
                 moneyGraph(navController, onReports = { navController.navigate(ReportsRoute) })

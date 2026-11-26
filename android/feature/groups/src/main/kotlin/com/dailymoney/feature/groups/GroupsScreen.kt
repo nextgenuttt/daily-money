@@ -1,6 +1,23 @@
 package com.dailymoney.feature.groups
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import com.dailymoney.core.designsystem.money.categoryColor
+import com.dailymoney.core.domain.groups.GroupRole
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -19,12 +36,8 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -128,19 +141,31 @@ internal fun GroupsScreen(onOpen: (String) -> Unit, onJoin: () -> Unit, viewMode
             TopAppBar(
                 title = { Text(stringResource(R.string.groups_title)) },
                 actions = {
-                    if (!backendOff) IconButton(onClick = onJoin) { Icon(Icons.Filled.Link, contentDescription = stringResource(R.string.groups_join)) }
+                    if (!backendOff) {
+                        TextButton(onClick = onJoin) {
+                            Icon(Icons.Filled.Link, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text(stringResource(R.string.groups_join_short), Modifier.padding(start = Spacing.xs))
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
         floatingActionButton = {
-            if (!backendOff) FloatingActionButton(onClick = viewModel::startCreate) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.groups_create)) }
+            if (!backendOff) {
+                ExtendedFloatingActionButton(
+                    onClick = viewModel::startCreate,
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text(stringResource(R.string.groups_new)) },
+                )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(start = Spacing.screenGutter, end = Spacing.screenGutter, bottom = 88.dp),
+            contentPadding = PaddingValues(start = Spacing.screenGutter, end = Spacing.screenGutter, top = Spacing.sm, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             when {
                 state.loading -> item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
@@ -156,19 +181,67 @@ internal fun GroupsScreen(onOpen: (String) -> Unit, onJoin: () -> Unit, viewMode
                         SecondaryButton(stringResource(R.string.groups_join), onJoin)
                     }
                 }
-                else -> items(state.groups, key = { it.id }) { g ->
-                    ListItem(
-                        headlineContent = { Text(g.name) },
-                        supportingContent = { Text("${g.kind.label()} · ${pluralStringResource(R.plurals.groups_members, g.memberCount.toInt(), g.memberCount.toInt())} · ${g.myRole.label()}") },
-                        leadingContent = { Icon(g.kind.icon(), contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
-                        modifier = Modifier.clickable { onOpen(g.id) },
-                    )
+                else -> {
+                    items(state.groups, key = { it.id }) { g -> GroupCard(g, onClick = { onOpen(g.id) }) }
+                    item { JoinHint(onJoin) }
                 }
             }
         }
     }
     state.create?.let { CreateDialog(it, state.createError, viewModel) }
+}
+
+@Composable
+private fun GroupCard(g: GroupSummary, onClick: () -> Unit) {
+    val members = g.memberCount.toInt()
+    val canInvite = g.myRole == GroupRole.OWNER || g.myRole == GroupRole.ADMIN
+    val tint = categoryColor(g.kind.ordinal)
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(48.dp).clip(CircleShape).background(tint.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
+                Icon(g.kind.icon(), contentDescription = null, tint = tint)
+            }
+            Column(Modifier.weight(1f).padding(horizontal = Spacing.md), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(g.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    "${g.kind.label()} · ${pluralStringResource(R.plurals.groups_members, members, members)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                // A group of one is the moment to bring people in.
+                if (members <= 1 && canInvite) {
+                    Text(stringResource(R.string.groups_only_you), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.secondaryContainer) {
+                Text(
+                    g.myRole.label(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = Spacing.sm, vertical = 4.dp),
+                )
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun JoinHint(onJoin: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(top = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            stringResource(R.string.groups_join_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onJoin) { Text(stringResource(R.string.groups_join_action)) }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

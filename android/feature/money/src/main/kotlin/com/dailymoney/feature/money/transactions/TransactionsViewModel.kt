@@ -1,5 +1,8 @@
 package com.dailymoney.feature.money.transactions
 
+import kotlinx.coroutines.launch
+import com.dailymoney.core.domain.money.AttachmentRepository
+import com.dailymoney.core.domain.money.DeleteTransactionUseCase
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailymoney.core.domain.config.AppConfig
@@ -37,6 +40,8 @@ data class TransactionsUiState(
 @HiltViewModel
 class TransactionsViewModel @Inject constructor(
     private val observeMonth: ObserveMonthTransactionsUseCase,
+    private val deleteTransaction: DeleteTransactionUseCase,
+    private val attachments: AttachmentRepository,
     config: AppConfig,
     private val clock: Clock,
 ) : ViewModel() {
@@ -69,4 +74,12 @@ class TransactionsViewModel @Inject constructor(
     fun nextMonth() = filters.update { if (it.month < YearMonth.now(clock)) it.copy(month = it.month.plusMonths(1)) else it }
     fun setType(type: TransactionType?) = filters.update { it.copy(type = type) }
     fun setQuery(query: String) = filters.update { it.copy(query = query) }
+
+    /** Same as deleting from the transaction screen: its receipts go too; a shared one leaves the group. */
+    fun delete(id: String) {
+        viewModelScope.launch {
+            deleteTransaction(id)
+            attachments.deleteFor(id)
+        }
+    }
 }

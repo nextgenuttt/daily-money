@@ -1,5 +1,8 @@
 package com.dailymoney.feature.money.planning
 
+import com.dailymoney.core.designsystem.component.rememberErrorScroller
+import com.dailymoney.core.designsystem.component.errorTarget
+import com.dailymoney.core.designsystem.component.DropdownField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -351,14 +354,15 @@ internal fun SubscriptionsScreen(onBack: () -> Unit, viewModel: RecurringViewMod
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SubscriptionDialog(editor: SubscriptionEditor, state: RecurringUiState, viewModel: RecurringViewModel) {
-    var showAllCategories by remember { mutableStateOf(false) }
     val expenseCategories = state.categories.values.filter { it.kind == CategoryKind.EXPENSE }.sortedBy { it.name }
     AlertDialog(
         onDismissRequest = viewModel::dismissEditor,
         title = { Text(stringResource(if (editor.id == null) R.string.subs_add else R.string.subs_edit)) },
         text = {
+            val errorScroller = rememberErrorScroller(Triple(editor.nameError, editor.amountError, editor.accountError))
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 OutlinedTextField(
+                    modifier = Modifier.errorTarget(errorScroller, 1, editor.nameError),
                     value = editor.name,
                     onValueChange = { v -> viewModel.updateEditor { it.copy(name = v, nameError = false) } },
                     label = { Text(stringResource(R.string.subs_name)) },
@@ -366,24 +370,38 @@ private fun SubscriptionDialog(editor: SubscriptionEditor, state: RecurringUiSta
                     supportingText = if (editor.nameError) { { Text(stringResource(R.string.name_err_required)) } } else null,
                     singleLine = true,
                 )
-                AmountField(editor.amountText, { v -> viewModel.updateEditor { it.copy(amountText = v, amountError = null) } }, stringResource(R.string.edit_amount), state.currency, editor.amountError)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Frequency.entries.filter { it != Frequency.DAILY }.forEach { f ->
-                        FilterChip(editor.frequency == f, { viewModel.updateEditor { it.copy(frequency = f) } }, { Text(f.label()) })
-                    }
-                }
+                AmountField(
+                    editor.amountText, { v -> viewModel.updateEditor { it.copy(amountText = v, amountError = null) } }, stringResource(R.string.edit_amount),
+                    state.currency, editor.amountError, Modifier.errorTarget(errorScroller, 2, editor.amountError != null),
+                )
+                DropdownField(
+                    label = stringResource(R.string.subs_how_often),
+                    options = Frequency.entries.filter { it != Frequency.DAILY },
+                    selected = editor.frequency,
+                    onSelect = { f -> viewModel.updateEditor { it.copy(frequency = f) } },
+                    optionLabel = { it.label() },
+                )
                 DateField(stringResource(R.string.subs_next_payment), editor.nextDate, { d -> viewModel.updateEditor { it.copy(nextDate = d) } })
-                Text(stringResource(R.string.edit_category), style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    val shown = if (showAllCategories) expenseCategories else expenseCategories.filter { it.iconKey in SUBSCRIPTION_KEYS || it.id == editor.categoryId }
-                    shown.forEach { c -> FilterChip(editor.categoryId == c.id, { viewModel.updateEditor { it.copy(categoryId = c.id) } }, { Text(c.name) }) }
-                    if (!showAllCategories) TextButton(onClick = { showAllCategories = true }) { Text(stringResource(R.string.more)) }
-                }
-                Text(stringResource(R.string.edit_account), style = MaterialTheme.typography.labelLarge)
-                if (editor.accountError) Text(stringResource(R.string.edit_err_account), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    state.accounts.forEach { a -> FilterChip(editor.accountId == a.id, { viewModel.updateEditor { it.copy(accountId = a.id, accountError = false) } }, { Text(a.name) }) }
-                }
+                // Subscription-type categories first, the rest after.
+                val ordered = expenseCategories.sortedBy { it.iconKey !in SUBSCRIPTION_KEYS }
+                DropdownField(
+                    label = stringResource(R.string.edit_category),
+                    options = ordered,
+                    selected = ordered.firstOrNull { it.id == editor.categoryId },
+                    onSelect = { c -> c?.let { viewModel.updateEditor { e -> e.copy(categoryId = it.id) } } },
+                    optionLabel = { it?.name.orEmpty() },
+                    placeholder = stringResource(R.string.edit_choose),
+                )
+                DropdownField(
+                    label = stringResource(R.string.edit_account),
+                    options = state.accounts,
+                    selected = state.accounts.firstOrNull { it.id == editor.accountId },
+                    onSelect = { a -> a?.let { viewModel.updateEditor { e -> e.copy(accountId = it.id, accountError = false) } } },
+                    optionLabel = { it?.name.orEmpty() },
+                    placeholder = stringResource(R.string.edit_choose),
+                    error = if (editor.accountError) stringResource(R.string.edit_err_account) else null,
+                    modifier = Modifier.errorTarget(errorScroller, 3, editor.accountError),
+                )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.subs_auto_post), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Switch(editor.autoPost, { v -> viewModel.updateEditor { it.copy(autoPost = v) } })

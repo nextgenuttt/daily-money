@@ -48,7 +48,8 @@ class AccountServiceTest {
         revocation = mock(TokenRevocationService.class);
         organizations = mock(OrganizationService.class);
         notifications = mock(NotificationService.class);
-        service = new AccountService(users, devices, admin, revocation, Clock.fixed(NOW, ZoneOffset.UTC), organizations, notifications);
+        service = new AccountService(users, devices, admin, revocation, Clock.fixed(NOW, ZoneOffset.UTC), organizations, notifications,
+                mock(org.springframework.transaction.PlatformTransactionManager.class));
         when(users.save(any())).thenAnswer(i -> i.getArgument(0));
         when(devices.save(any())).thenAnswer(i -> i.getArgument(0));
     }
@@ -144,5 +145,22 @@ class AccountServiceTest {
 
         assertThat(user.isActive()).isTrue();
         org.mockito.Mockito.verifyNoInteractions(admin, notifications);
+    }
+
+    @Test
+    void bootstrapRacingAnotherBootstrapRetriesAndFindsTheRows() {
+        User user = User.create(UUID.randomUUID(), "uid-1", "Ravi", NOW);
+        when(users.findByFirebaseUid("uid-1")).thenReturn(Optional.of(user));
+        UUID deviceId = UUID.randomUUID();
+        Device other = Device.register(deviceId, user.getId(), NOW);
+        when(devices.findById(deviceId)).thenReturn(Optional.empty(), Optional.of(other));
+        when(devices.save(any()))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("devices_pkey"))
+                .thenAnswer(i -> i.getArgument(0));
+
+        User result = service.bootstrap(principal, new BootstrapCommand(deviceId, "Pixel", "1.0", "token", "Ravi", "Asia/Kolkata"));
+
+        assertThat(result).isSameAs(user);
+        verify(devices, org.mockito.Mockito.times(2)).save(any());
     }
 }

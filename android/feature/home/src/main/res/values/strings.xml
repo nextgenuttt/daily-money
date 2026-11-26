@@ -120,4 +120,34 @@
     <string name="delete_account_sign_in_again">For your safety, sign out and sign in again, then delete your account.</string>
     <string name="delete_account_failed">Couldn\'t delete your account. Check your connection and try again.</string>
     <string name="settings_privacy">Privacy policy</string>
+    <string name="sms_setting_title">Find payments in bank SMS</string>
+    <string name="sms_setting_off">Off. Turn on to get bank payments suggested automatically.</string>
+    <string name="sms_setting_on">On. Bank and UPI messages are checked on this phone.</string>
+    <string name="sms_setting_scanning">Looking through the last 30 days…</string>
+    <plurals name="sms_setting_found">
+        <item quantity="one">On. Found %1$d payment in the last %2$d days; see Home.</item>
+        <item quantity="other">On. Found %1$d payments in the last %2$d days; see Home.</item>
+    </plurals>
+    <string name="sms_setting_denied">SMS permission wasn\'t allowed, so this stays off.</string>
+    <string name="sms_setting_open_settings">Allow in phone settings</string>
+    <string name="sms_disclosure_title">Read your bank SMS?</string>
+    <string name="sms_disclosure_what">Daily Money will read SMS from banks and UPI services (sender IDs like AX-HDFCBK) to find payments: amount, debit or credit, who was paid, date and the last digits of the account.</string>
+    <string name="sms_disclosure_skip">Messages from people, OTPs and offers are skipped. The message text is not stored; only the payment details are kept, and you choose what to add.</string>
+    <string name="sms_disclosure_where">Everything happens on this phone. Your messages are never uploaded or shared.</string>
+    <string name="sms_disclosure_off">You can turn this off any time here, or remove the permission in phone settings.</string>
+    <string name="sms_disclosure_agree">Agree and continue</string>
+    <string name="sms_disclosure_no">Not now</string>
+    <plurals name="home_found_payments">
+        <item quantity="one">%1$d payment found in your SMS</item>
+        <item quantity="other">%1$d payments found in your SMS</item>
+    </plurals>
+    <string name="home_found_review">Review</string>
+    <string name="phone_title">Mobile number</string>
+    <string name="phone_not_set">Not set · optional, for payment reminders</string>
+    <string name="phone_label">Mobile number</string>
+    <string name="phone_hint">Optional. Only people in your groups see it, so they can send you a payment reminder on WhatsApp or SMS from their own phone. Leave empty to remove it.</string>
+    <string name="phone_invalid">Enter a mobile number like 98765 43210 or +91 98765 43210.</string>
+    <string name="sms_test_button">Test: pretend a bank SMS arrived</string>
+    <string name="sms_test_done">Sent a sample "₹149 paid to swiggy" through the SMS reader. Check your notifications and Home.</string>
+    <string name="sms_test_failed">The sample message wasn\'t recognised.</string>
 </resources>

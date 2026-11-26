@@ -1,5 +1,10 @@
 package com.dailymoney.feature.groups
 
+import com.dailymoney.core.domain.config.AppConfig
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.dailymoney.core.domain.sharing.SmsSender
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -124,6 +129,8 @@ class GroupExpensesViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     repository: SharedExpenseRepository,
     private val settlements: SettlementRepository,
+    private val smsSender: SmsSender,
+    config: AppConfig,
     private val groups: GroupRepository,
     private val sync: SyncScheduler,
     private val clock: Clock,
@@ -185,6 +192,41 @@ class GroupExpensesViewModel @Inject constructor(
         act {
             if (d.iOwe) settlements.record(groupId, me, d.person.userId, amount, group.currency, d.method, d.note)
             else settlements.record(groupId, d.person.userId, me, amount, group.currency, d.method, d.note)
+        }
+    }
+
+    private val _remind = MutableStateFlow<RemindUi?>(null)
+    val remind: StateFlow<RemindUi?> = _remind
+
+    fun openRemind(row: BalanceRow) {
+        if (row.netMinor > 0) _remind.value = RemindUi(row.person, row.netMinor)
+    }
+
+    fun closeRemind() {
+        _remind.value = null
+    }
+
+    val canSendSms: Boolean get() = smsSender.supported
+    val payPageUrl: String = config.payPageUrl
+
+    /** From this phone's SIM, to the member's saved number. */
+    fun sendRemindSms(text: String) {
+        val r = _remind.value ?: return
+        val phone = r.person.phone ?: return
+        _remind.value = r.copy(smsSending = true, smsResult = null)
+        viewModelScope.launch {
+            val result = smsSender.send(phone, text)
+            _remind.update { it?.copy(smsSending = false, smsResult = result) }
+        }
+    }
+
+    fun sendRemind() {
+        val r = _remind.value ?: return
+        val currency = state.value.group?.currency ?: return
+        _remind.value = r.copy(sending = true, result = null)
+        viewModelScope.launch {
+            val result = settlements.remind(groupId, r.person.userId, r.amountMinor, currency)
+            _remind.update { it?.copy(sending = false, result = result) }
         }
     }
 
@@ -275,7 +317,7 @@ internal fun GroupExpensesScreen(
         LazyColumn(
             Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(start = Spacing.screenGutter, end = Spacing.screenGutter, bottom = Spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             item {
                 MonthSelector(
@@ -301,13 +343,20 @@ internal fun GroupExpensesScreen(
                 }
             }
             item {
-                BalancesSection(state, onSettle = viewModel::openSettle, onConfirm = viewModel::confirm, onCancel = viewModel::cancel)
+                BalancesSection(state, onSettle = viewModel::openSettle, onRemind = viewModel::openRemind, onConfirm = viewModel::confirm, onCancel = viewModel::cancel)
             }
             if (!group.canView) {
                 item { Text(stringResource(R.string.shared_only_yours), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
+            item {
+                Text(
+                    stringResource(R.string.shared_expenses_header),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = Spacing.md),
+                )
+            }
             if (state.expenses.isEmpty()) {
-                item { Text(stringResource(R.string.shared_empty), Modifier.padding(vertical = Spacing.md), color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                item { Text(stringResource(R.string.shared_empty), Modifier.padding(vertical = Spacing.sm), color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             items(state.expenses, key = { it.id }) { e ->
                 val who = if (e.mine) stringResource(R.string.shared_you) else e.creatorName
@@ -397,6 +446,24 @@ private fun RejectReasonDialog(dialog: RejectDialog, ui: ApprovalUi, viewModel: 
 @Composable
 private fun SettleHost(state: GroupExpensesUiState, viewModel: GroupExpensesViewModel) {
     state.dialog?.let { SettleUpDialog(it, state, viewModel) }
+    val remind by viewModel.remind.collectAsStateWithLifecycle()
+    remind?.let { r ->
+        val group = state.group
+        if (group != null) {
+            RemindDialog(
+                remind = r,
+                groupName = group.name,
+                currency = group.currency,
+                myUpiId = group.members.firstOrNull { it.isMe }?.upiId,
+                myName = group.members.firstOrNull { it.isMe }?.name,
+                payPageUrl = viewModel.payPageUrl,
+                canSendSms = viewModel.canSendSms,
+                onSendInApp = viewModel::sendRemind,
+                onSendSms = viewModel::sendRemindSms,
+                onClose = viewModel::closeRemind,
+            )
+        }
+    }
 }
 
 @Composable
@@ -422,19 +489,21 @@ private fun Summary(d: GroupDashboard, currency: String) {
 @Composable
 private fun Breakdowns(title: String, rows: List<Breakdown>, total: Long, currency: String) {
     val uncategorized = stringResource(R.string.shared_uncategorized)
-    Column(Modifier.padding(top = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+    Column(Modifier.padding(top = Spacing.md, bottom = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
         Text(title, style = MaterialTheme.typography.titleMedium)
         rows.forEach { row ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f).padding(end = Spacing.sm)) {
-                    Text(row.label.ifBlank { uncategorized }, style = MaterialTheme.typography.bodyLarge)
-                    LinearProgressIndicator(
-                        progress = { if (total > 0) row.amountMinor.toFloat() / total else 0f },
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                    )
+            Column(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(row.label.ifBlank { uncategorized }, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(end = Spacing.sm))
+                    MoneyText(row.amountMinor, currency, style = MaterialTheme.typography.bodyMedium)
                 }
-                MoneyText(row.amountMinor, currency, style = MaterialTheme.typography.bodyMedium)
+                LinearProgressIndicator(
+                    progress = { if (total > 0) row.amountMinor.toFloat() / total else 0f },
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    drawStopIndicator = {},
+                    gapSize = 0.dp,
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(6.dp).clip(RoundedCornerShape(3.dp)),
+                )
             }
         }
     }

@@ -117,7 +117,7 @@
     <string name="det_repeats">Repeats %1$s</string>
     <string name="det_snooze">Snooze</string>
     <string name="det_reschedule">Reschedule</string>
-    <string name="det_skip">Skip this time</string>
+    <string name="det_skip">Skip</string>
     <string name="det_history">History</string>
     <string name="det_history_done">Done on %1$s</string>
     <string name="det_history_paid">Paid %1$s on %2$s</string>
@@ -145,4 +145,5 @@
     <string name="cal_next">Next month</string>
     <string name="cal_nothing">Nothing on this day.</string>
     <string name="cal_add_here">Add on this day</string>
+    <string name="rem_none">None</string>
 </resources>

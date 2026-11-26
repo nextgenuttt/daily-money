@@ -43,6 +43,7 @@ sealed interface OpenRequest {
     data class Invite(val token: String) : OpenRequest
     /** [id] null: the notification list itself. */
     data class Notification(val id: String?) : OpenRequest
+    data object FoundPayments : OpenRequest
     /** A message shared into the app, to fill a new transaction. */
     data class AddFromText(val text: String) : OpenRequest
 }
@@ -155,6 +156,7 @@ class AppViewModel @Inject constructor(
             AppLinks.OPEN_BUDGETS -> OpenRequest.Budgets
             AppLinks.OPEN_TODO -> extras.getString(AppLinks.EXTRA_TODO_ID)?.let { OpenRequest.Todo(it) }
             AppLinks.OPEN_NOTIFICATION -> OpenRequest.Notification(extras.getString(AppLinks.EXTRA_NOTIFICATION_ID))
+            AppLinks.OPEN_FOUND_PAYMENTS -> OpenRequest.FoundPayments
             else -> null
         }
     }

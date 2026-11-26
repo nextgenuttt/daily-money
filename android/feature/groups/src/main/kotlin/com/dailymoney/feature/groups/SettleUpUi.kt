@@ -1,8 +1,7 @@
 package com.dailymoney.feature.groups
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.net.Uri
+import com.dailymoney.core.domain.sharing.UpiPayment
+import com.dailymoney.core.designsystem.component.openUpiApp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -43,6 +42,7 @@ import com.dailymoney.core.domain.sharing.SettlementStatus
 internal fun BalancesSection(
     state: GroupExpensesUiState,
     onSettle: (BalanceRow) -> Unit,
+    onRemind: (BalanceRow) -> Unit,
     onConfirm: (PendingPayment) -> Unit,
     onCancel: (PendingPayment) -> Unit,
 ) {
@@ -63,6 +63,8 @@ internal fun BalancesSection(
                         modifier = Modifier.weight(1f),
                         color = if (row.netMinor > 0) LocalStatusColors.current.income else MaterialTheme.colorScheme.onSurface,
                     )
+                    // Someone who owes me can be nudged; settling stays available either way.
+                    if (row.netMinor > 0) TextButton(onClick = { onRemind(row) }, enabled = !state.working) { Text(stringResource(R.string.remind_action)) }
                     TextButton(onClick = { onSettle(row) }, enabled = !state.working) { Text(stringResource(R.string.settle_up)) }
                 }
             }
@@ -135,20 +137,9 @@ internal fun SettleUpDialog(dialog: SettleDialog, state: GroupExpensesUiState, v
                 )
                 if (dialog.iOwe && upiId != null && amount != null && amount > 0) {
                     OutlinedButton(onClick = {
-                        val uri = Uri.Builder().scheme("upi").authority("pay")
-                            .appendQueryParameter("pa", upiId)
-                            .appendQueryParameter("pn", dialog.person.name)
-                            .appendQueryParameter("am", MoneyFormatter.toInput(amount, currency))
-                            .appendQueryParameter("cu", currency)
-                            .appendQueryParameter("tn", state.group.name)
-                            .build()
-                        upiFailed = try {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-                            viewModel.updateSettle { it.copy(method = SettleMethod.UPI) }
-                            false
-                        } catch (e: ActivityNotFoundException) {
-                            true
-                        }
+                        val opened = openUpiApp(context, UpiPayment.appUri(upiId, dialog.person.name, amount, state.group.name))
+                        if (opened) viewModel.updateSettle { it.copy(method = SettleMethod.UPI) }
+                        upiFailed = !opened
                     }) { Text(stringResource(R.string.settle_open_upi)) }
                 }
                 Text(

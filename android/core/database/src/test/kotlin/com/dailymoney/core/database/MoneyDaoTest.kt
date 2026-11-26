@@ -117,4 +117,16 @@ class MoneyDaoTest {
         rules.deleteForCategory("groceries")
         assertEquals(listOf("uber"), rules.observeAll().first().map { it.pattern })
     }
+
+    @Test
+    fun `payment suggestions ignore repeats and keep dismissed ones dismissed`() = runTest {
+        val dao = db.paymentSuggestionDao()
+        fun row(id: String) = com.dailymoney.core.database.entity.PaymentSuggestionEntity(id, "AX-HDFCBK", "DEBIT", 25000, "INR", "swiggy", 20_000, "1234", 1, "NEW")
+        assertEquals(listOf(1L, 2L), dao.insertAll(listOf(row("a"), row("b"))))
+        dao.setStatus("a", "DISMISSED")
+        assertEquals(listOf(-1L), dao.insertAll(listOf(row("a"))))
+        assertEquals(listOf("b"), dao.observePending().first().map { it.id })
+        dao.dismissAll()
+        assertEquals(0, dao.observePendingCount().first())
+    }
 }

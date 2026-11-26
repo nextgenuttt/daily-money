@@ -258,4 +258,24 @@
         <item quantity="one">seen by %d</item>
         <item quantity="other">seen by %d</item>
     </plurals>
+    <string name="groups_join_short">Join</string>
+    <string name="groups_new">New group</string>
+    <string name="groups_only_you">Only you so far · Invite people</string>
+    <string name="groups_join_hint">Got an invite link from someone?</string>
+    <string name="groups_join_action">Join a group</string>
+    <string name="notifications_pay_reminder">%1$s reminds you: you owe %2$s</string>
+    <string name="remind_action">Remind</string>
+    <string name="remind_title">Remind %1$s</string>
+    <string name="remind_body">%1$s owes you %2$s in %3$s.</string>
+    <string name="remind_in_app">Send reminder in Daily Money</string>
+    <string name="remind_whatsapp">Remind on WhatsApp</string>
+    <string name="remind_sms">Remind by SMS</string>
+    <string name="remind_phone_known">WhatsApp and SMS open %1$s\'s chat with the message ready; you tap send.</string>
+    <string name="remind_phone_unknown">%1$s hasn\'t added a phone number, so you\'ll pick their chat yourself. The message is ready to send.</string>
+    <string name="remind_sent">Sent. %1$s will get a notification.</string>
+    <string name="remind_already">You already reminded them today. Try again tomorrow, or use WhatsApp/SMS.</string>
+    <string name="remind_failed">Couldn\'t send the reminder. Try again.</string>
+    <string name="remind_offline">You\'re offline. Try again when you\'re connected.</string>
+    <string name="remind_close">Close</string>
+    <string name="shared_expenses_header">Expenses</string>
 </resources>

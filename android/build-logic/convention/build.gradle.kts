@@ -37,6 +37,10 @@ gradlePlugin {
             id = "dailymoney.android.hilt"
             implementationClass = "AndroidHiltConventionPlugin"
         }
+        register("kmpLibrary") {
+            id = "dailymoney.kmp.library"
+            implementationClass = "KmpLibraryConventionPlugin"
+        }
         register("jvmLibrary") {
             id = "dailymoney.jvm.library"
             implementationClass = "JvmLibraryConventionPlugin"

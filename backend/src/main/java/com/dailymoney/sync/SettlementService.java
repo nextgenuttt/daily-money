@@ -2,6 +2,8 @@ package com.dailymoney.sync;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -119,6 +121,26 @@ public class SettlementService {
         events.publishEvent(SyncPoke.users(s.payerId(), s.receiverId()));
         return new Settlement(s.id(), s.orgId(), s.payerId(), s.receiverId(), s.amountMinor(), s.currency(), s.method(), status, s.note(),
                 s.createdBy(), s.createdAt(), me.getId(), now, seq);
+    }
+
+    /**
+     * "You owe me": one notification to that member only, at most once a day per pair and group. The
+     * amount comes from the asker's phone (balances are worked out there) and is shown as theirs.
+     */
+    @Transactional
+    public void remind(User me, UUID orgId, UUID userId, Long amountMinor, String currency) {
+        permissions.member(orgId, me.getId());
+        if (userId == null || userId.equals(me.getId())) throw ApiException.rule("INVALID_REMINDER", "Choose someone else");
+        if (memberships.find(orgId, userId).filter(Membership::isActive).isEmpty()) throw ApiException.notFound("Member not found");
+        if (amountMinor == null || amountMinor <= 0) throw invalid("Amount must be more than zero");
+        if (currency == null || !CURRENCY.matcher(currency).matches()) throw invalid("Bad currency");
+        store.lockWrites();
+        String key = "PAYMENT_REMINDER:" + orgId + ":" + me.getId() + ":" + LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC);
+        if (notifications.exists(userId, key)) throw ApiException.rule("ALREADY_REMINDED", "You already reminded them today");
+        Map<String, Object> params = Map.of("actor", me.getDisplayName(), "amountMinor", amountMinor, "currency", currency);
+        notifications.send(Set.of(userId), orgId, "PAYMENT_REMINDER", "MEMBER", me.getId(), params, key);
+        audit.record(me.getId(), orgId, "MEMBER", userId, "PAYMENT_REMINDER", String.valueOf(amountMinor));
+        events.publishEvent(SyncPoke.users(userId));
     }
 
     /** Tells the other person: the receiver about a payment to confirm, the payer about the answer. */

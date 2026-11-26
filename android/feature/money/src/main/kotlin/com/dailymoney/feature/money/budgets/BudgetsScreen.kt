@@ -1,5 +1,8 @@
 package com.dailymoney.feature.money.budgets
 
+import com.dailymoney.core.designsystem.component.rememberErrorScroller
+import com.dailymoney.core.designsystem.component.errorTarget
+import com.dailymoney.core.designsystem.component.DropdownField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -242,8 +245,10 @@ private fun BudgetDialog(editor: BudgetEditor, state: BudgetsUiState, viewModel:
         onDismissRequest = viewModel::dismiss,
         title = { Text(stringResource(if (editor.id == null) R.string.budgets_add else R.string.budgets_edit)) },
         text = {
+            val errorScroller = rememberErrorScroller(editor.error)
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 OutlinedTextField(
+                    modifier = Modifier.errorTarget(errorScroller, 1, editor.error == BudgetSaveResult.AmountInvalid),
                     value = editor.limitText,
                     onValueChange = viewModel::onLimit,
                     label = { Text(stringResource(R.string.budgets_limit)) },
@@ -261,15 +266,18 @@ private fun BudgetDialog(editor: BudgetEditor, state: BudgetsUiState, viewModel:
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     BudgetPeriod.entries.forEach { p -> FilterChip(editor.period == p, { viewModel.onPeriod(p) }, { Text(p.label()) }) }
                 }
-                Text(stringResource(R.string.budgets_for), style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    FilterChip(editor.categoryId == null, { viewModel.onCategory(null) }, { Text(stringResource(R.string.budgets_overall)) })
-                    state.expenseCategories.forEach { c ->
-                        FilterChip(editor.categoryId == c.id, { viewModel.onCategory(c.id) }, { Text(c.name) })
-                    }
-                }
+                DropdownField(
+                    label = stringResource(R.string.budgets_for),
+                    options = listOf<String?>(null) + state.expenseCategories.map { it.id },
+                    selected = editor.categoryId,
+                    onSelect = viewModel::onCategory,
+                    optionLabel = { id -> state.expenseCategories.firstOrNull { it.id == id }?.name ?: stringResource(R.string.budgets_overall) },
+                )
                 if (editor.error == BudgetSaveResult.Duplicate) {
-                    Text(stringResource(R.string.budgets_err_duplicate), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stringResource(R.string.budgets_err_duplicate), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.errorTarget(errorScroller, 2, true),
+                    )
                 }
                 if (editor.id != null) {
                     TextButton(onClick = viewModel::delete) {

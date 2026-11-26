@@ -151,6 +151,15 @@ public class User {
         return upiId;
     }
 
+    public String getPhoneE164() {
+        return phoneE164;
+    }
+
+    public void changePhone(String phoneE164, Instant now) {
+        this.phoneE164 = phoneE164;
+        this.updatedAt = now;
+    }
+
     public void changeUpiId(String upiId, Instant now) {
         this.upiId = upiId;
         this.updatedAt = now;

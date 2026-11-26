@@ -1,5 +1,7 @@
 package com.dailymoney.feature.money.categories
 
+import com.dailymoney.core.designsystem.component.rememberErrorScroller
+import com.dailymoney.core.designsystem.component.errorTarget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -197,8 +199,10 @@ private fun CategoryDialog(editor: CategoryEditor, viewModel: CategoriesViewMode
         onDismissRequest = viewModel::dismiss,
         title = { Text(stringResource(if (editor.original == null) R.string.categories_add else R.string.categories_edit)) },
         text = {
+            val errorScroller = rememberErrorScroller(editor.nameError)
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 OutlinedTextField(
+                    modifier = Modifier.errorTarget(errorScroller, 1, editor.nameError != null),
                     value = editor.name,
                     onValueChange = viewModel::onName,
                     label = { Text(stringResource(R.string.categories_name)) },

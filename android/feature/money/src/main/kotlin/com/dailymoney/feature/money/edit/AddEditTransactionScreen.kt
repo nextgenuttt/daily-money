@@ -1,5 +1,7 @@
 package com.dailymoney.feature.money.edit
 
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,6 +56,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailymoney.core.designsystem.component.DropdownField
 import com.dailymoney.core.designsystem.component.ErrorBanner
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -72,6 +75,7 @@ import com.dailymoney.core.designsystem.money.categoryIcon
 import com.dailymoney.core.designsystem.theme.MoneyTextStyle
 import com.dailymoney.core.designsystem.theme.Spacing
 import com.dailymoney.core.domain.money.Account
+import com.dailymoney.core.domain.money.Category
 import com.dailymoney.core.domain.money.Currencies
 import com.dailymoney.core.domain.money.Frequency
 import com.dailymoney.core.domain.money.PaymentMethod
@@ -141,6 +145,22 @@ internal fun AddEditTransactionScreen(
             ErrorBanner(stringResource(R.string.edit_not_found), Modifier.padding(padding).padding(Spacing.md))
             return@Scaffold
         }
+        // A failed save scrolls to the first field that needs fixing (category may be off screen).
+        val amountField = remember { BringIntoViewRequester() }
+        val categoryField = remember { BringIntoViewRequester() }
+        val accountField = remember { BringIntoViewRequester() }
+        val noteField = remember { BringIntoViewRequester() }
+        LaunchedEffect(state.invalidAttempts) {
+            if (state.invalidAttempts == 0) return@LaunchedEffect
+            val e = state.errors
+            when {
+                TransactionError.AMOUNT_REQUIRED in e || TransactionError.AMOUNT_INVALID in e -> amountField
+                TransactionError.CATEGORY_REQUIRED in e -> categoryField
+                TransactionError.ACCOUNT_REQUIRED in e || TransactionError.SAME_ACCOUNT in e -> accountField
+                TransactionError.NOTE_TOO_LONG in e -> noteField
+                else -> null
+            }?.bringIntoView()
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -190,11 +210,21 @@ internal fun AddEditTransactionScreen(
                 supportingText = state.errors.firstOrNull { it == TransactionError.AMOUNT_REQUIRED || it == TransactionError.AMOUNT_INVALID }
                     ?.let { { Text(it.message()) } },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().bringIntoViewRequester(amountField),
             )
 
             if (form.type != TransactionType.TRANSFER) {
-                SectionLabel(stringResource(R.string.edit_category), state.errors.takeIf { TransactionError.CATEGORY_REQUIRED in it }?.let { TransactionError.CATEGORY_REQUIRED })
+                DropdownField(
+                    modifier = Modifier.bringIntoViewRequester(categoryField),
+                    label = stringResource(R.string.edit_category),
+                    options = state.categories,
+                    selected = state.categories.firstOrNull { it.id == form.categoryId },
+                    onSelect = { c -> c?.let { viewModel.setCategory(it.id) } },
+                    optionLabel = { it?.name.orEmpty() },
+                    optionIcon = { c -> c?.let { CategoryIcon(it) } },
+                    placeholder = stringResource(R.string.edit_choose),
+                    error = state.errors.firstOrNull { it == TransactionError.CATEGORY_REQUIRED }?.message(),
+                )
                 state.suggestedCategory?.let { suggested ->
                     AssistChip(
                         onClick = { viewModel.setCategory(suggested.id) },
@@ -202,34 +232,25 @@ internal fun AddEditTransactionScreen(
                         leadingIcon = { Icon(Icons.Filled.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp)) },
                     )
                 }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    state.categories.forEach { category ->
-                        FilterChip(
-                            selected = form.categoryId == category.id,
-                            onClick = { viewModel.setCategory(category.id) },
-                            label = { Text(category.name) },
-                            leadingIcon = {
-                                Icon(
-                                    categoryIcon(category.iconKey),
-                                    contentDescription = null,
-                                    tint = categoryColor(category.colorIndex),
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            },
-                        )
-                    }
-                }
             }
 
-            SectionLabel(
-                stringResource(if (form.type == TransactionType.TRANSFER) R.string.edit_from_account else R.string.edit_account),
-                state.errors.firstOrNull { it == TransactionError.ACCOUNT_REQUIRED },
+            AccountDropdown(
+                label = stringResource(if (form.type == TransactionType.TRANSFER) R.string.edit_from_account else R.string.edit_account),
+                accounts = state.accounts,
+                selectedId = form.accountId,
+                onSelect = viewModel::setAccount,
+                error = state.errors.firstOrNull { it == TransactionError.ACCOUNT_REQUIRED }?.message(),
+                modifier = Modifier.bringIntoViewRequester(accountField),
             )
-            AccountChips(state.accounts, form.accountId, viewModel::setAccount)
 
             if (form.type == TransactionType.TRANSFER) {
-                SectionLabel(stringResource(R.string.edit_to_account), state.errors.firstOrNull { it == TransactionError.SAME_ACCOUNT })
-                AccountChips(state.accounts.filter { it.id != form.accountId }, form.toAccountId, viewModel::setToAccount)
+                AccountDropdown(
+                    label = stringResource(R.string.edit_to_account),
+                    accounts = state.accounts.filter { it.id != form.accountId },
+                    selectedId = form.toAccountId,
+                    onSelect = viewModel::setToAccount,
+                    error = state.errors.firstOrNull { it == TransactionError.SAME_ACCOUNT }?.message(),
+                )
             }
 
             OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.fillMaxWidth()) {
@@ -238,16 +259,13 @@ internal fun AddEditTransactionScreen(
             }
 
             if (form.type != TransactionType.TRANSFER) {
-                SectionLabel(stringResource(R.string.edit_payment_method), null)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    PaymentMethod.entries.forEach { method ->
-                        FilterChip(
-                            selected = form.paymentMethod == method,
-                            onClick = { viewModel.setPaymentMethod(method) },
-                            label = { Text(method.label()) },
-                        )
-                    }
-                }
+                DropdownField(
+                    label = stringResource(R.string.edit_payment_method),
+                    options = listOf<PaymentMethod?>(null) + PaymentMethod.entries,
+                    selected = form.paymentMethod,
+                    onSelect = viewModel::choosePaymentMethod,
+                    optionLabel = { it?.label() ?: stringResource(R.string.edit_not_set) },
+                )
             }
 
             if (form.type != TransactionType.TRANSFER && (state.share.groups.isNotEmpty() || form.shareGroupId != null)) {
@@ -255,13 +273,13 @@ internal fun AddEditTransactionScreen(
             }
 
             if (!state.isEdit) {
-                SectionLabel(stringResource(R.string.edit_repeat), null)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    FilterChip(form.repeat == null, { viewModel.setRepeat(null) }, { Text(stringResource(R.string.repeat_never)) })
-                    Frequency.entries.forEach { f ->
-                        FilterChip(form.repeat == f, { viewModel.setRepeat(f) }, { Text(f.label()) })
-                    }
-                }
+                DropdownField(
+                    label = stringResource(R.string.edit_repeat),
+                    options = listOf<Frequency?>(null) + Frequency.entries,
+                    selected = form.repeat,
+                    onSelect = viewModel::setRepeat,
+                    optionLabel = { it?.label() ?: stringResource(R.string.repeat_never) },
+                )
                 if (form.repeat != null) {
                     Text(
                         stringResource(R.string.repeat_hint, form.repeat.everyLabel()),
@@ -294,7 +312,7 @@ internal fun AddEditTransactionScreen(
                 label = { Text(stringResource(R.string.edit_note)) },
                 isError = TransactionError.NOTE_TOO_LONG in state.errors,
                 supportingText = { Text("${form.note.length}/200") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().bringIntoViewRequester(noteField),
             )
 
             PrimaryButton(
@@ -496,17 +514,29 @@ private fun SectionLabel(text: String, error: TransactionError?) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AccountChips(accounts: List<Account>, selectedId: String?, onSelect: (String) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        accounts.forEach { account ->
-            FilterChip(
-                selected = selectedId == account.id,
-                onClick = { onSelect(account.id) },
-                label = { Text(account.name) },
-                leadingIcon = { Icon(accountIcon(account.type), contentDescription = null, modifier = Modifier.size(18.dp)) },
-            )
-        }
-    }
+private fun AccountDropdown(
+    label: String,
+    accounts: List<Account>,
+    selectedId: String?,
+    onSelect: (String) -> Unit,
+    error: String?,
+    modifier: Modifier = Modifier,
+) {
+    DropdownField(
+        modifier = modifier,
+        label = label,
+        options = accounts,
+        selected = accounts.firstOrNull { it.id == selectedId },
+        onSelect = { a -> a?.let { onSelect(it.id) } },
+        optionLabel = { it?.name.orEmpty() },
+        optionIcon = { a -> a?.let { Icon(accountIcon(it.type), contentDescription = null, modifier = Modifier.size(20.dp)) } },
+        placeholder = stringResource(R.string.edit_choose),
+        error = error,
+    )
+}
+
+@Composable
+private fun CategoryIcon(category: Category) {
+    Icon(categoryIcon(category.iconKey), contentDescription = null, tint = categoryColor(category.colorIndex), modifier = Modifier.size(20.dp))
 }

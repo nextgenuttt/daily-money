@@ -32,6 +32,7 @@ data class HomeLinks(
     val reminders: () -> Unit,
     val openReminder: (String, Long) -> Unit,
     val notifications: () -> Unit,
+    val foundPayments: () -> Unit,
 )
 
 fun NavGraphBuilder.homeGraph(navController: NavController, user: AuthUser, links: HomeLinks) {
@@ -53,6 +54,7 @@ fun NavGraphBuilder.homeGraph(navController: NavController, user: AuthUser, link
             onOpenDebts = links.debts,
             onOpenReminders = links.reminders,
             onOpenReminder = links.openReminder,
+            onOpenFoundPayments = links.foundPayments,
         )
     }
     composable<SettingsRoute> {

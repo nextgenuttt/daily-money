@@ -203,9 +203,10 @@ internal fun SyncPullDto.toPullPage() = PullPage(
         }
     },
     nextCursor = nextCursor,
-    members = orgs.flatMap { org -> org.members.map { SyncMemberEntity(org.id, it.userId, it.name, it.upiId) } },
+    members = orgs.flatMap { org -> org.members.map { SyncMemberEntity(org.id, it.userId, it.name, it.upiId, it.phone) } },
     me = me,
     myUpiId = myUpiId,
+    myPhone = myPhone,
 )
 
 private const val ENTITY_SETTLEMENT = "SETTLEMENT"

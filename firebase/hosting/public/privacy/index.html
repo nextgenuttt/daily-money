@@ -7,23 +7,32 @@
   <link rel="stylesheet" href="/auth/style.css">
 </head>
 <body>
-  <!-- DRAFT (Phase 12). Fill in OWNER_NAME, SUPPORT_EMAIL and EFFECTIVE_DATE, and have it reviewed before publishing. -->
   <main class="card">
     <h1>Privacy policy</h1>
-    <p>Effective EFFECTIVE_DATE. Daily Money is made by OWNER_NAME. Contact: SUPPORT_EMAIL.</p>
+    <p>Effective 25 November 2026. Daily Money is made by Vignesh. Contact: nextgenuttt@gmail.com.</p>
 
     <h2>What stays on your phone</h2>
     <p>Your accounts, transactions, budgets, goals, debts, reminders, tasks and receipt photos are stored only
       on your phone, in an encrypted database. Receipt photos and bank statements you import are read on the
-      phone (Google ML Kit runs on the device). Bank messages are read only when you share one into the app;
-      the app does not read your SMS inbox.</p>
+      phone (Google ML Kit runs on the device).</p>
+
+    <h2>Bank SMS (only if you turn it on)</h2>
+    <p>Settings → <strong>Find payments in bank SMS</strong> is off by default. If you turn it on and allow the SMS
+      permission, the app reads messages from bank and UPI sender IDs (for example AX-HDFCBK) on your phone to find
+      payments: amount, debit or credit, who was paid, the date and the last digits of the account. Messages from
+      people, OTPs and offers are skipped. The message text is not stored; only those payment details are kept on the
+      phone, and nothing is added until you tap Add. Your messages are never uploaded, shared or used for anything
+      else. Turn it off in Settings or remove the permission in your phone's settings at any time. You can also add a
+      payment by sharing a single message into the app, which needs no permission.</p>
 
     <h2>What reaches our servers</h2>
     <ul>
       <li><strong>Account:</strong> name, email and sign-in provider, through Google Firebase Authentication.</li>
       <li><strong>Groups (only if you use them):</strong> group names and members, invitations, and the expenses
         you choose to share: amount, category, date, note, split and approvals. Never your accounts or balances.</li>
-      <li><strong>Payments between members:</strong> settlements you record, and your UPI ID if you add one.</li>
+      <li><strong>Payments between members:</strong> settlements you record, your UPI ID and mobile number if you
+        add them (optional; shown only to people in your groups, so they can pay you or send you a payment reminder
+        on WhatsApp/SMS from their own phone), and payment reminders members send you.</li>
       <li><strong>Messages and notifications</strong> about shared expenses.</li>
       <li><strong>Device:</strong> a random device ID, app version and a push token (Firebase Cloud Messaging).
         Pushes carry no content.</li>

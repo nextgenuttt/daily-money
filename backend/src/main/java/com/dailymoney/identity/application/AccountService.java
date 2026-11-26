@@ -16,13 +16,18 @@ import com.dailymoney.shared.id.UuidV7;
 import com.dailymoney.shared.security.FirebasePrincipal;
 import com.dailymoney.shared.web.ApiException;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class AccountService {
 
+    private static final Pattern INDIAN_MOBILE = Pattern.compile("^(\\+?91|0)?[6-9][0-9]{9}$");
+    private static final Pattern E164 = Pattern.compile("^\\+[1-9][0-9]{7,14}$");
     private static final Pattern UPI_ID = Pattern.compile("^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,32}$");
 
     private final UserRepository users;
@@ -32,9 +37,12 @@ public class AccountService {
     private final Clock clock;
     private final OrganizationService organizations;
     private final NotificationService notifications;
+    private final TransactionTemplate tx;
 
     public AccountService(UserRepository users, DeviceRepository devices, FirebaseAccountAdmin firebaseAdmin,
-            TokenRevocationService revocation, Clock clock, OrganizationService organizations, NotificationService notifications) {
+            TokenRevocationService revocation, Clock clock, OrganizationService organizations, NotificationService notifications,
+            PlatformTransactionManager transactions) {
+        this.tx = new TransactionTemplate(transactions);
         this.organizations = organizations;
         this.notifications = notifications;
         this.users = users;
@@ -44,9 +52,20 @@ public class AccountService {
         this.clock = clock;
     }
 
-    /** First call after every sign-in: creates or refreshes the profile and registers the device. */
-    @Transactional
+    /**
+     * First call after every sign-in: creates or refreshes the profile and registers the device. A phone
+     * can send two at once on first launch (sign-in and a new push token); the loser of that insert race
+     * simply runs again and finds the rows the other one created.
+     */
     public User bootstrap(FirebasePrincipal principal, BootstrapCommand cmd) {
+        try {
+            return tx.execute(status -> bootstrapOnce(principal, cmd));
+        } catch (DataIntegrityViolationException e) {
+            return tx.execute(status -> bootstrapOnce(principal, cmd));
+        }
+    }
+
+    private User bootstrapOnce(FirebasePrincipal principal, BootstrapCommand cmd) {
         Instant now = clock.instant();
         User user = users.findByFirebaseUid(principal.uid())
                 .orElseGet(() -> User.create(UuidV7.next(), principal.uid(), initialName(principal, cmd), now));
@@ -89,6 +108,24 @@ public class AccountService {
             throw ApiException.rule("INVALID_UPI_ID", "Enter a UPI ID like name@bank");
         }
         user.changeUpiId(cleaned, clock.instant());
+        return users.save(user);
+    }
+
+    /**
+     * Blank clears it. "98765 43210" and "+91 98765 43210" both become +919876543210. Shared only with
+     * people in the same groups, so they can send a WhatsApp/SMS payment reminder from their own phone.
+     */
+    @Transactional
+    public User changePhone(FirebasePrincipal principal, String phone) {
+        User user = requireUser(principal);
+        String digits = phone == null ? "" : phone.replaceAll("[\\s()-]", "");
+        String e164 = null;
+        if (!digits.isEmpty()) {
+            if (INDIAN_MOBILE.matcher(digits).matches()) e164 = "+91" + digits.substring(digits.length() - 10);
+            else if (E164.matcher(digits).matches()) e164 = digits;
+            else throw ApiException.rule("INVALID_PHONE", "Enter a mobile number like 98765 43210 or +91 98765 43210");
+        }
+        user.changePhone(e164, clock.instant());
         return users.save(user);
     }
 

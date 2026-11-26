@@ -218,4 +218,45 @@ class SplitSettlementFlowTest extends IntegrationTest {
         }
         assertThat(pull(g.owner()).get("myUpiId").asString()).isEqualTo("ravi.k@okbank");
     }
+
+    @Test
+    void phoneIsNormalisedAndSharedWithGroupMembers() throws Exception {
+        Group g = group();
+        mvc.perform(withJson(put("/api/v1/me/phone").with(g.member().auth()), Map.of("phone", "12345")))
+                .andExpect(jsonPath("$.code").value("INVALID_PHONE"));
+        mvc.perform(withJson(put("/api/v1/me/phone").with(g.member().auth()), Map.of("phone", "98765 43210")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.phone").value("+919876543210"));
+        String member = id(g.member());
+        for (JsonNode m : pull(g.owner()).get("orgs").get(0).get("members")) {
+            if (m.get("userId").asString().equals(member)) assertThat(m.get("phone").asString()).isEqualTo("+919876543210");
+        }
+    }
+
+    @Test
+    void paymentReminderReachesOnlyThatMemberOncePerDay() throws Exception {
+        Group g = group();
+        Map<String, Object> req = Map.of("userId", id(g.member()), "amountMinor", 75000, "currency", "INR");
+        mvc.perform(withJson(post("/api/v1/organizations/" + g.id() + "/payment-reminders").with(g.owner().auth()), req))
+                .andExpect(status().isNoContent());
+        mvc.perform(withJson(post("/api/v1/organizations/" + g.id() + "/payment-reminders").with(g.owner().auth()), req))
+                .andExpect(jsonPath("$.code").value("ALREADY_REMINDED"));
+
+        JsonNode reminder = null;
+        for (JsonNode c : pull(g.member()).get("changes")) {
+            if (c.has("notification") && !c.get("notification").isNull() && c.get("notification").get("type").asString().equals("PAYMENT_REMINDER")) reminder = c.get("notification");
+        }
+        assertThat(reminder).isNotNull();
+        assertThat(reminder.get("params").get("actor").asString()).isEqualTo("Ravi");
+        assertThat(reminder.get("params").get("amountMinor").asLong()).isEqualTo(75000);
+        for (JsonNode c : pull(g.viewer()).get("changes")) {
+            if (c.has("notification") && !c.get("notification").isNull()) assertThat(c.get("notification").get("type").asString()).isNotEqualTo("PAYMENT_REMINDER");
+        }
+
+        TestUser stranger = newUser("Stranger");
+        mvc.perform(withJson(post("/api/v1/organizations/" + g.id() + "/payment-reminders").with(stranger.auth()), req))
+                .andExpect(status().isNotFound());
+        mvc.perform(withJson(post("/api/v1/organizations/" + g.id() + "/payment-reminders").with(g.owner().auth()),
+                Map.of("userId", id(g.owner()), "amountMinor", 100, "currency", "INR")))
+                .andExpect(jsonPath("$.code").value("INVALID_REMINDER"));
+    }
 }

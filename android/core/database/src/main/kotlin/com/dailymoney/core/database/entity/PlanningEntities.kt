@@ -1,5 +1,6 @@
 package com.dailymoney.core.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -69,6 +70,8 @@ data class DebtEntity(
     val updatedAt: Long,
     val deletedAt: Long? = null,
     val version: Int = 1,
+    @ColumnInfo(defaultValue = "NULL") val phone: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val upiId: String? = null,
 )
 
 @Entity(tableName = "debt_repayments", indices = [Index("debtId")])

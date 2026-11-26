@@ -1,5 +1,8 @@
 package com.dailymoney.feature.reminders.edit
 
+import com.dailymoney.core.designsystem.component.rememberErrorScroller
+import com.dailymoney.core.designsystem.component.errorTarget
+import com.dailymoney.core.designsystem.component.DropdownField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -128,6 +131,8 @@ data class AddEditReminderUiState(
     val accounts: List<Account> = emptyList(),
     val errors: Set<ReminderError> = emptySet(),
     val saving: Boolean = false,
+    /** Bumped on every failed save so the form scrolls to the problem again. */
+    val attempts: Int = 0,
 )
 
 val ALERT_CHOICES = listOf(0, 60, 1440, 4320, 10080)
@@ -258,7 +263,7 @@ class AddEditReminderViewModel @Inject constructor(
         meta.update { it.copy(saving = true) }
         viewModelScope.launch {
             val errors = saveReminder(reminder, if (f.kind.hasAmount) f.amountText else "")
-            if (errors.isEmpty()) _close.send(Unit) else meta.update { it.copy(saving = false, errors = errors) }
+            if (errors.isEmpty()) _close.send(Unit) else meta.update { it.copy(saving = false, errors = errors, attempts = it.attempts + 1) }
         }
     }
 
@@ -297,21 +302,19 @@ internal fun AddEditReminderScreen(onClose: () -> Unit, viewModel: AddEditRemind
             LinearProgressIndicator(Modifier.fillMaxWidth().padding(padding))
             return@Scaffold
         }
+        val errorScroller = rememberErrorScroller(state.attempts)
         Column(
             Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = Spacing.screenGutter),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
-            Label(stringResource(R.string.rem_type))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                ReminderKind.entries.forEach { kind ->
-                    FilterChip(
-                        selected = f.kind == kind,
-                        onClick = { viewModel.setKind(kind) },
-                        label = { Text(kind.label()) },
-                        leadingIcon = { Icon(reminderIcon(kind), contentDescription = null, tint = reminderColor(kind.group), modifier = Modifier.size(18.dp)) },
-                    )
-                }
-            }
+            DropdownField(
+                label = stringResource(R.string.rem_type),
+                options = ReminderKind.entries,
+                selected = f.kind,
+                onSelect = viewModel::setKind,
+                optionLabel = { it.label() },
+                optionIcon = { kind -> Icon(reminderIcon(kind), contentDescription = null, tint = reminderColor(kind.group), modifier = Modifier.size(20.dp)) },
+            )
             OutlinedTextField(
                 value = f.title,
                 onValueChange = { v -> viewModel.update { it.copy(title = v) } },
@@ -324,7 +327,8 @@ internal fun AddEditReminderScreen(onClose: () -> Unit, viewModel: AddEditRemind
                 },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
+                    .errorTarget(errorScroller, 1, ReminderError.TITLE_REQUIRED in state.errors || ReminderError.TITLE_TOO_LONG in state.errors),
             )
             if (f.kind.hasAmount) {
                 OutlinedTextField(
@@ -336,7 +340,7 @@ internal fun AddEditReminderScreen(onClose: () -> Unit, viewModel: AddEditRemind
                     supportingText = if (ReminderError.AMOUNT_INVALID in state.errors) { { Text(stringResource(R.string.rem_err_amount)) } } else null,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().errorTarget(errorScroller, 2, ReminderError.AMOUNT_INVALID in state.errors),
                 )
             }
 
@@ -363,7 +367,10 @@ internal fun AddEditReminderScreen(onClose: () -> Unit, viewModel: AddEditRemind
                     }
                 }
                 if (ReminderError.END_BEFORE_START in state.errors) {
-                    Text(stringResource(R.string.rem_err_end), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stringResource(R.string.rem_err_end), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.errorTarget(errorScroller, 3, true),
+                    )
                 }
             }
             if (f.kind.isEvent) {
@@ -376,13 +383,13 @@ internal fun AddEditReminderScreen(onClose: () -> Unit, viewModel: AddEditRemind
                 )
             }
 
-            Label(stringResource(R.string.rem_repeat))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                FilterChip(f.repeat == null, { viewModel.update { it.copy(repeat = null) } }, { Text(stringResource(R.string.rem_never)) })
-                Frequency.entries.forEach { freq ->
-                    FilterChip(f.repeat == freq, { viewModel.update { it.copy(repeat = freq) } }, { Text(frequencyLabel(freq)) })
-                }
-            }
+            DropdownField(
+                label = stringResource(R.string.rem_repeat),
+                options = listOf<Frequency?>(null) + Frequency.entries,
+                selected = f.repeat,
+                onSelect = { freq -> viewModel.update { it.copy(repeat = freq) } },
+                optionLabel = { it?.let { freq -> frequencyLabel(freq) } ?: stringResource(R.string.rem_never) },
+            )
 
             Label(stringResource(R.string.rem_alerts))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -417,7 +424,10 @@ internal fun AddEditReminderScreen(onClose: () -> Unit, viewModel: AddEditRemind
                     }
                 }
                 if (ReminderError.STEP_INVALID in state.errors) {
-                    Text(stringResource(R.string.rem_err_step), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stringResource(R.string.rem_err_step), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.errorTarget(errorScroller, 4, true),
+                    )
                 }
                 Row {
                     TextButton(onClick = viewModel::addStep) {
@@ -431,14 +441,20 @@ internal fun AddEditReminderScreen(onClose: () -> Unit, viewModel: AddEditRemind
             }
 
             if (f.kind.hasAmount) {
-                Label(stringResource(R.string.rem_category))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    state.categories.forEach { c -> FilterChip(f.categoryId == c.id, { viewModel.update { it.copy(categoryId = c.id) } }, { Text(c.name) }) }
-                }
-                Label(stringResource(R.string.rem_account))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    state.accounts.forEach { a -> FilterChip(f.accountId == a.id, { viewModel.update { it.copy(accountId = if (it.accountId == a.id) null else a.id) } }, { Text(a.name) }) }
-                }
+                DropdownField(
+                    label = stringResource(R.string.rem_category),
+                    options = listOf<String?>(null) + state.categories.map { it.id },
+                    selected = f.categoryId,
+                    onSelect = { id -> viewModel.update { it.copy(categoryId = id) } },
+                    optionLabel = { id -> state.categories.firstOrNull { it.id == id }?.name ?: stringResource(R.string.rem_none) },
+                )
+                DropdownField(
+                    label = stringResource(R.string.rem_account),
+                    options = listOf<String?>(null) + state.accounts.map { it.id },
+                    selected = f.accountId,
+                    onSelect = { id -> viewModel.update { it.copy(accountId = id) } },
+                    optionLabel = { id -> state.accounts.firstOrNull { it.id == id }?.name ?: stringResource(R.string.rem_none) },
+                )
             }
 
             OutlinedTextField(

@@ -40,6 +40,8 @@ object NotificationTexts {
                 Text(context.getString(R.string.notif_settle_confirmed_title), context.getString(R.string.notif_settle_confirmed_body, actor, money("amountMinor")))
             NotificationType.SETTLEMENT_CANCELLED ->
                 Text(context.getString(R.string.notif_settle_cancelled_title), context.getString(R.string.notif_settle_cancelled_body, actor, money("amountMinor")))
+            NotificationType.PAYMENT_REMINDER ->
+                Text(context.getString(R.string.notif_pay_reminder_title, actor), context.getString(R.string.notif_pay_reminder_body, actor, money("amountMinor")))
             NotificationType.MESSAGE ->
                 Text(context.getString(R.string.notif_message_title, actor, what), p["preview"].orEmpty())
         }

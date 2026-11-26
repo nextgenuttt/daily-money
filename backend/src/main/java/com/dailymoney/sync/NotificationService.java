@@ -78,6 +78,11 @@ public class NotificationService {
         });
     }
 
+    public boolean exists(UUID userId, String dedupeKey) {
+        Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND dedupe_key = ?", Integer.class, userId, dedupeKey);
+        return n != null && n > 0;
+    }
+
     public void deleteAllFor(UUID userId) {
         jdbc.update("DELETE FROM notifications WHERE user_id = ?", userId);
     }

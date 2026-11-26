@@ -1,5 +1,6 @@
 package com.dailymoney.feature.money.importing
 
+import com.dailymoney.core.designsystem.component.DropdownField
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -158,10 +159,13 @@ private fun PreviewStep(state: ImportUiState, viewModel: ImportStatementViewMode
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = Spacing.md)) {
             item {
                 Column(Modifier.padding(horizontal = Spacing.screenGutter, vertical = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Text(stringResource(R.string.import_into), style = MaterialTheme.typography.labelLarge)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        state.accounts.forEach { a -> FilterChip(a.id == state.accountId, { viewModel.selectAccount(a.id) }, { Text(a.name) }) }
-                    }
+                    DropdownField(
+                        label = stringResource(R.string.import_into),
+                        options = state.accounts,
+                        selected = state.account,
+                        onSelect = { a -> a?.let { viewModel.selectAccount(it.id) } },
+                        optionLabel = { it?.name.orEmpty() },
+                    )
                     Text(
                         stringResource(
                             R.string.import_summary,

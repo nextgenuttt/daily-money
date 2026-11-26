@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <title>Daily Money · Pay with UPI</title>
+  <link rel="stylesheet" href="/auth/style.css">
+  <style>
+    .amount { font-size: 2.2rem; font-weight: 700; margin: 0.4rem 0; }
+    .payee { margin: 0 0 1rem; }
+    .button { display: block; text-align: center; text-decoration: none; padding: 0.9rem; border-radius: 999px;
+              background: #1f5a44; color: #fff; font-weight: 600; margin: 1rem 0 0.6rem; }
+    .secondary { background: transparent; color: inherit; border: 1px solid currentColor; }
+    .small { font-size: 0.85rem; opacity: 0.8; }
+  </style>
+</head>
+<body>
+  <!--
+    Payment link from a Daily Money reminder (pay?pa=UPI_ID&pn=NAME&am=500.00&cu=INR&tn=NOTE).
+    Nothing is sent anywhere: the page only builds a upi:// link that opens the visitor's own UPI app,
+    where they check the name and confirm with their PIN. Inputs are validated and shown as text only.
+  -->
+  <main class="card">
+    <section id="pay" class="hidden">
+      <h1>Pay with UPI</h1>
+      <p class="amount" id="amount"></p>
+      <p class="payee">to <strong id="name"></strong><br><span class="small" id="upi"></span></p>
+      <p class="small" id="note"></p>
+      <a class="button" id="open" href="#">Open my UPI app</a>
+      <button class="button secondary" id="copy" type="button">Copy UPI ID</button>
+      <p class="small" id="copied" hidden>UPI ID copied.</p>
+      <p class="small">Opens Google Pay, PhonePe, Paytm, BHIM or your bank app with the amount filled in.
+        <strong>Check the name shown in your UPI app before you pay</strong>; this page doesn't verify who the UPI ID belongs to.
+        On a computer, open this link on your phone instead.</p>
+    </section>
+    <section id="bad" class="hidden">
+      <h1>This payment link isn't valid</h1>
+      <p>Ask the person who sent it for their UPI ID and pay them from your UPI app.</p>
+    </section>
+  </main>
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var pa = (q.get("pa") || "").trim();
+      var pn = (q.get("pn") || "").trim().slice(0, 40);
+      var am = (q.get("am") || "").trim();
+      var tn = (q.get("tn") || "").trim().slice(0, 40);
+      var validId = /^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9.-]{1,32}$/.test(pa);
+      var validAmount = /^\d{1,7}(\.\d{1,2})?$/.test(am) && Number(am) > 0;
+      if (!validId || !validAmount) {
+        document.getElementById("bad").classList.remove("hidden");
+        return;
+      }
+      var rupees = Number(am).toLocaleString("en-IN", { style: "currency", currency: "INR" });
+      document.getElementById("amount").textContent = rupees;
+      document.getElementById("name").textContent = pn || pa;
+      document.getElementById("upi").textContent = pa;
+      if (tn) document.getElementById("note").textContent = "For: " + tn;
+      var params = ["pa=" + encodeURIComponent(pa)];
+      if (pn) params.push("pn=" + encodeURIComponent(pn));
+      params.push("am=" + encodeURIComponent(Number(am).toFixed(2)), "cu=INR");
+      if (tn) params.push("tn=" + encodeURIComponent(tn));
+      document.getElementById("open").href = "upi://pay?" + params.join("&");
+      document.getElementById("copy").addEventListener("click", async function () {
+        try {
+          await navigator.clipboard.writeText(pa);
+          document.getElementById("copied").hidden = false;
+        } catch (e) { /* clipboard blocked: the UPI ID is shown above */ }
+      });
+      document.getElementById("pay").classList.remove("hidden");
+    })();
+  </script>
+</body>
+</html>

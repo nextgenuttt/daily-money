@@ -44,3 +44,17 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+// `./gradlew bootRun` reads secrets from backend/.env (git-ignored). Tests never see them; hosts set real env vars.
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+    val envFile = file(".env")
+    if (envFile.exists()) {
+        envFile.readLines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("#") && "=" in it }
+            .forEach { line -> environment(line.substringBefore("=").trim(), line.substringAfter("=").trim()) }
+    }
+}
+
+// Only the runnable jar is needed (keeps the Docker copy unambiguous).
+tasks.named<Jar>("jar") { enabled = false }

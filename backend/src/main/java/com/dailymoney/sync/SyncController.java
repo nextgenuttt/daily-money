@@ -13,7 +13,9 @@ import jakarta.validation.constraints.Size;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -55,6 +57,15 @@ public class SyncController {
     public SyncService.SettlementView record(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID orgId,
             @RequestBody SettlementService.NewSettlement req) {
         return SyncService.SettlementView.of(settlements.record(currentUser.require(FirebasePrincipal.from(jwt)), orgId, req));
+    }
+
+    public record ReminderRequest(UUID userId, Long amountMinor, String currency) {
+    }
+
+    @PostMapping("/organizations/{orgId}/payment-reminders")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void remind(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID orgId, @RequestBody ReminderRequest req) {
+        settlements.remind(currentUser.require(FirebasePrincipal.from(jwt)), orgId, req.userId(), req.amountMinor(), req.currency());
     }
 
     @PostMapping("/settlements/{id}/confirm")

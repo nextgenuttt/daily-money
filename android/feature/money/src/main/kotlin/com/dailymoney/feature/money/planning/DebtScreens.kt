@@ -1,5 +1,28 @@
 package com.dailymoney.feature.money.planning
 
+import androidx.compose.material3.Button
+import com.dailymoney.core.domain.auth.SessionState
+import com.dailymoney.core.domain.auth.AuthRepository
+import com.dailymoney.core.designsystem.component.openUpiApp
+import com.dailymoney.core.domain.sharing.UpiPayment
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Contacts
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.provider.ContactsContract
+import android.content.Intent
+import com.dailymoney.core.domain.sharing.ReminderText
+import com.dailymoney.core.designsystem.component.ReminderChannels
+import com.dailymoney.core.designsystem.component.DirectSms
+import androidx.compose.material.icons.filled.NotificationsActive
+import com.dailymoney.core.domain.sharing.PhoneNumbers
+import com.dailymoney.core.domain.sharing.SharedExpenseRepository
+import com.dailymoney.core.domain.sharing.SmsSender
+import com.dailymoney.core.domain.sharing.SmsSendResult
+import com.dailymoney.core.designsystem.component.rememberErrorScroller
+import com.dailymoney.core.designsystem.component.errorTarget
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -95,7 +118,14 @@ data class DebtEditor(
     val note: String,
     val personError: Boolean = false,
     val amountError: AmountError? = null,
+    val phone: String = "",
+    val phoneError: Boolean = false,
+    val upiId: String = "",
+    val upiError: Boolean = false,
 )
+
+/** A reminder being sent for money someone owes me (they don't need the app). */
+data class DebtRemind(val smsSending: Boolean = false, val smsResult: SmsSendResult? = null)
 
 data class RepaymentEditor(val amountText: String, val date: LocalDate, val note: String, val error: AmountError? = null)
 
@@ -108,6 +138,12 @@ data class DebtsUiState(
     val editor: DebtEditor? = null,
     val repayment: RepaymentEditor? = null,
     val confirmDelete: Boolean = false,
+    val remind: DebtRemind? = null,
+    val myUpiId: String? = null,
+    val myName: String? = null,
+    /** Set when a UPI app was opened to pay; on return we ask whether to record the repayment. */
+    val paying: Long? = null,
+    val noUpiApp: Boolean = false,
 ) {
     val visible get() = debts.filter { it.settled == showSettled }
     val summary get() = PlanningMath.debtSummary(debts)
@@ -117,22 +153,30 @@ data class DebtsUiState(
 class DebtsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: DebtRepository,
+    private val smsSender: SmsSender,
+    shared: SharedExpenseRepository,
+    auth: AuthRepository,
     config: AppConfig,
     private val clock: Clock,
 ) : ViewModel() {
+
+    val canSendSms: Boolean get() = smsSender.supported
+    val payPageUrl: String = config.payPageUrl
 
     val debtId: String? = runCatching { savedStateHandle.toRoute<DebtDetailRoute>().debtId }.getOrNull()
     private val currency = config.defaultCurrency
     private val ui = MutableStateFlow(DebtsUiState(currency = currency, today = LocalDate.now(clock)))
 
-    val state: StateFlow<DebtsUiState> = combine(ui, repository.observe()) { u, d -> u.copy(loading = false, debts = d) }
+    val state: StateFlow<DebtsUiState> = combine(ui, repository.observe(), shared.observeMe(), auth.session) { u, d, me, session ->
+        u.copy(loading = false, debts = d, myUpiId = me?.upiId, myName = (session as? SessionState.SignedIn)?.user?.displayName)
+    }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ui.value)
 
     fun setShowSettled(v: Boolean) = ui.update { it.copy(showSettled = v) }
 
     fun add() = ui.update { it.copy(editor = DebtEditor(null, "", DebtDirection.LENT, "", LocalDate.now(clock), null, "")) }
     fun edit(d: Debt) = ui.update {
-        it.copy(editor = DebtEditor(d.id, d.person, d.direction, MoneyFormatter.toInput(d.principalMinor, d.currency), d.startDate, d.dueDate, d.note.orEmpty()))
+        it.copy(editor = DebtEditor(d.id, d.person, d.direction, MoneyFormatter.toInput(d.principalMinor, d.currency), d.startDate, d.dueDate, d.note.orEmpty(), phone = d.phone.orEmpty(), upiId = d.upiId.orEmpty()))
     }
     fun dismissEditor() = ui.update { it.copy(editor = null) }
     fun updateEditor(block: (DebtEditor) -> DebtEditor) = ui.update { it.copy(editor = it.editor?.let(block)) }
@@ -141,12 +185,16 @@ class DebtsViewModel @Inject constructor(
         val e = ui.value.editor ?: return
         val (amount, error) = parsePositiveAmount(e.amountText, currency)
         val personError = e.person.isBlank() || e.person.trim().length > 40
-        if (error != null || personError) {
-            updateEditor { it.copy(amountError = error, personError = personError) }
+        val phone = PhoneNumbers.normalise(e.phone)
+        val phoneError = e.phone.isNotBlank() && phone == null
+        val upi = e.upiId.trim().ifEmpty { null }
+        val upiError = upi != null && !UpiPayment.isValidId(upi)
+        if (error != null || personError || phoneError || upiError) {
+            updateEditor { it.copy(amountError = error, personError = personError, phoneError = phoneError, upiError = upiError) }
             return
         }
         viewModelScope.launch {
-            repository.save(Debt(e.id ?: Ids.newId(), e.person.trim(), e.direction, amount!!, currency, e.startDate, e.dueDate, e.note.trim().ifEmpty { null }))
+            repository.save(Debt(e.id ?: Ids.newId(), e.person.trim(), e.direction, amount!!, currency, e.startDate, e.dueDate, e.note.trim().ifEmpty { null }, phone, upi))
             ui.update { it.copy(editor = null) }
         }
     }
@@ -173,6 +221,24 @@ class DebtsViewModel @Inject constructor(
 
     fun deleteRepayment(id: String) {
         viewModelScope.launch { repository.deleteRepayment(id) }
+    }
+
+    fun paymentOpened(amountMinor: Long, opened: Boolean) = ui.update { it.copy(paying = amountMinor.takeIf { opened }, noUpiApp = !opened) }
+    fun paymentAnswered(paid: Boolean) {
+        val amount = ui.value.paying ?: return
+        ui.update { it.copy(paying = null) }
+        if (paid) startRepayment(amount)
+    }
+
+    fun openRemind() = ui.update { it.copy(remind = DebtRemind()) }
+    fun closeRemind() = ui.update { it.copy(remind = null) }
+
+    fun sendRemindSms(phone: String, text: String) {
+        ui.update { it.copy(remind = DebtRemind(smsSending = true)) }
+        viewModelScope.launch {
+            val result = smsSender.send(phone, text)
+            ui.update { it.copy(remind = it.remind?.copy(smsSending = false, smsResult = result)) }
+        }
     }
 
     fun askDelete() = ui.update { it.copy(confirmDelete = true) }
@@ -313,6 +379,27 @@ internal fun DebtDetailScreen(onBack: () -> Unit, viewModel: DebtsViewModel = hi
                     }
                 }
             }
+            val payTo = d.upiId?.takeIf { UpiPayment.isValidId(it) }
+            if (!status.settled && d.direction == DebtDirection.BORROWED && payTo != null) {
+                item {
+                    val context = LocalContext.current
+                    Button(onClick = {
+                        val opened = openUpiApp(context, UpiPayment.appUri(payTo, d.person, status.outstandingMinor, d.note ?: "Repayment"))
+                        viewModel.paymentOpened(status.outstandingMinor, opened)
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.debts_pay_upi, MoneyFormatter.format(status.outstandingMinor, d.currency), d.person))
+                    }
+                    if (state.noUpiApp) Text(stringResource(R.string.debts_no_upi_app), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            if (!status.settled && d.direction == DebtDirection.LENT) {
+                item {
+                    OutlinedButton(onClick = viewModel::openRemind, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.NotificationsActive, contentDescription = null)
+                        Text(stringResource(R.string.debts_remind, d.person), modifier = Modifier.padding(start = Spacing.sm))
+                    }
+                }
+            }
             if (!status.settled) {
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -336,6 +423,18 @@ internal fun DebtDetailScreen(onBack: () -> Unit, viewModel: DebtsViewModel = hi
             }
         }
     }
+    // Back from the UPI app: only the user knows if the payment went through.
+    state.paying?.let { amount ->
+        AlertDialog(
+            onDismissRequest = { viewModel.paymentAnswered(false) },
+            title = { Text(stringResource(R.string.debts_paid_question)) },
+            text = { Text(stringResource(R.string.debts_paid_body, MoneyFormatter.format(amount, state.currency))) },
+            confirmButton = { TextButton(onClick = { viewModel.paymentAnswered(true) }) { Text(stringResource(R.string.debts_paid_yes)) } },
+            dismissButton = { TextButton(onClick = { viewModel.paymentAnswered(false) }) { Text(stringResource(R.string.debts_paid_no)) } },
+        )
+    }
+    val remindFor = state.debts.firstOrNull { it.debt.id == viewModel.debtId }
+    if (state.remind != null && remindFor != null) DebtRemindDialog(remindFor, state, viewModel)
     state.editor?.let { DebtDialog(it, state.currency, viewModel) }
     state.repayment?.let { r ->
         AlertDialog(
@@ -363,6 +462,7 @@ private fun DebtDialog(editor: DebtEditor, currency: String, viewModel: DebtsVie
         onDismissRequest = viewModel::dismissEditor,
         title = { Text(stringResource(if (editor.id == null) R.string.debts_add else R.string.debts_edit)) },
         text = {
+            val errorScroller = rememberErrorScroller(editor.personError to editor.amountError)
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(DebtDirection.LENT to R.string.debts_i_lent, DebtDirection.BORROWED to R.string.debts_i_borrowed).forEachIndexed { i, (dir, label) ->
@@ -378,17 +478,89 @@ private fun DebtDialog(editor: DebtEditor, currency: String, viewModel: DebtsVie
                     isError = editor.personError,
                     supportingText = if (editor.personError) { { Text(stringResource(R.string.name_err_required)) } } else null,
                     singleLine = true,
+                    modifier = Modifier.errorTarget(errorScroller, 1, editor.personError),
                 )
-                AmountField(editor.amountText, { v -> viewModel.updateEditor { it.copy(amountText = v, amountError = null) } }, stringResource(R.string.edit_amount), currency, editor.amountError)
+                AmountField(
+                    editor.amountText, { v -> viewModel.updateEditor { it.copy(amountText = v, amountError = null) } }, stringResource(R.string.edit_amount),
+                    currency, editor.amountError, Modifier.errorTarget(errorScroller, 2, editor.amountError != null),
+                )
                 DateField(stringResource(R.string.edit_date), editor.startDate, { d -> viewModel.updateEditor { it.copy(startDate = d) } })
                 DateField(
                     stringResource(R.string.debts_due_date), editor.dueDate, { d -> viewModel.updateEditor { it.copy(dueDate = d) } },
                     placeholder = stringResource(R.string.optional), onClear = { viewModel.updateEditor { it.copy(dueDate = null) } },
+                )
+                PhoneField(editor, viewModel)
+                OutlinedTextField(
+                    value = editor.upiId,
+                    onValueChange = { v -> viewModel.updateEditor { it.copy(upiId = v.filter { c -> !c.isWhitespace() }.take(100), upiError = false) } },
+                    label = { Text(stringResource(R.string.debts_upi)) },
+                    placeholder = { Text(stringResource(R.string.optional)) },
+                    isError = editor.upiError,
+                    supportingText = { Text(stringResource(if (editor.upiError) R.string.debts_upi_invalid else R.string.debts_upi_hint)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    singleLine = true,
                 )
                 OutlinedTextField(editor.note, { v -> viewModel.updateEditor { it.copy(note = v.take(200)) } }, label = { Text(stringResource(R.string.edit_note)) }, singleLine = true)
             }
         },
         confirmButton = { TextButton(onClick = viewModel::saveDebt) { Text(stringResource(R.string.save)) } },
         dismissButton = { TextButton(onClick = viewModel::dismissEditor) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/** Their mobile: typed, or picked from contacts (one contact is shared with us; no contacts permission). */
+@Composable
+private fun PhoneField(editor: DebtEditor, viewModel: DebtsViewModel) {
+    val context = LocalContext.current
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val uri = result.data?.data ?: return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.query(uri, arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME), null, null, null)
+                ?.use { c -> if (c.moveToFirst()) c.getString(0).orEmpty() to c.getString(1).orEmpty() else null }
+        }.getOrNull()?.let { (number, name) ->
+            viewModel.updateEditor { it.copy(phone = number, phoneError = false, person = it.person.ifBlank { name.take(40) }) }
+        }
+    }
+    OutlinedTextField(
+        value = editor.phone,
+        onValueChange = { v -> viewModel.updateEditor { it.copy(phone = v.filter { c -> c.isDigit() || c in "+ -" }.take(20), phoneError = false) } },
+        label = { Text(stringResource(R.string.debts_phone)) },
+        placeholder = { Text(stringResource(R.string.optional)) },
+        isError = editor.phoneError,
+        supportingText = { Text(stringResource(if (editor.phoneError) R.string.debts_phone_invalid else R.string.debts_phone_hint)) },
+        trailingIcon = {
+            IconButton(onClick = {
+                runCatching { pick.launch(Intent(Intent.ACTION_PICK).setType(ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE)) }
+            }) { Icon(Icons.Filled.Contacts, contentDescription = stringResource(R.string.debts_pick_contact)) }
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+        singleLine = true,
+    )
+}
+
+@Composable
+private fun DebtRemindDialog(status: DebtStatus, state: DebtsUiState, viewModel: DebtsViewModel) {
+    val d = status.debt
+    val amount = MoneyFormatter.format(status.outstandingMinor, d.currency)
+    val payLink = state.myUpiId?.takeIf { UpiPayment.isValidId(it) && viewModel.payPageUrl.isNotBlank() }
+        ?.let { UpiPayment.webLink(viewModel.payPageUrl, it, state.myName, status.outstandingMinor, d.note) }
+    val message = ReminderText.build(d.person, amount, "(lent on ${d.startDate.mediumLabel()})", state.myUpiId, payLink)
+    val remind = state.remind ?: return
+    AlertDialog(
+        onDismissRequest = viewModel::closeRemind,
+        title = { Text(stringResource(R.string.debts_remind, d.person)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                ReminderChannels(
+                    phone = d.phone,
+                    message = message,
+                    directSms = if (viewModel.canSendSms) DirectSms(remind.smsResult, remind.smsSending) { d.phone?.let { viewModel.sendRemindSms(it, message) } } else null,
+                )
+                if (d.phone == null) {
+                    Text(stringResource(R.string.debts_remind_no_phone), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = viewModel::closeRemind) { Text(stringResource(R.string.close)) } },
     )
 }

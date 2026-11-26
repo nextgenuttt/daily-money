@@ -34,6 +34,8 @@ import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -107,7 +109,7 @@ public class SyncService {
     }
 
     /** UPI ID only when the member chose to share one. */
-    public record MemberView(UUID userId, String name, String upiId) {
+    public record MemberView(UUID userId, String name, String upiId, String phone) {
     }
 
     public record OrgView(UUID id, String name, String currency, boolean canView, boolean canAdd, boolean canReport, boolean canSplit,
@@ -127,7 +129,7 @@ public class SyncService {
             NotificationService.NotificationView notification) {
     }
 
-    public record PullResult(UUID me, String myUpiId, List<OrgView> orgs, List<Change> changes, long nextCursor, boolean hasMore) {
+    public record PullResult(UUID me, String myUpiId, String myPhone, List<OrgView> orgs, List<Change> changes, long nextCursor, boolean hasMore) {
     }
 
     private final SyncStore store;
@@ -486,7 +488,7 @@ public class SyncService {
                 }
             }
             long next = page.isEmpty() ? cursor : page.get(page.size() - 1).seq();
-            return new PullResult(me.getId(), me.getUpiId(), orgs, changes, next, merged.size() > size);
+            return new PullResult(me.getId(), me.getUpiId(), me.getPhoneE164(), orgs, changes, next, merged.size() > size);
         });
     }
 
@@ -496,7 +498,7 @@ public class SyncService {
         return active.stream()
                 .map(m -> people.get(m.getUserId()))
                 .filter(u -> u != null)
-                .map(u -> new MemberView(u.getId(), u.getDisplayName(), u.getUpiId()))
+                .map(u -> new MemberView(u.getId(), u.getDisplayName(), u.getUpiId(), u.getPhoneE164()))
                 .toList();
     }
 
@@ -535,8 +537,12 @@ public class SyncService {
                 allowed.stream().sorted().toList(), e.approvalStatus(), e.version(), e.updatedAt(), split, decisions);
     }
 
-    /** Replayed pushes older than a week are treated as new; phones retry long before that. */
+    /**
+     * Replayed pushes older than a week are treated as new; phones retry long before that. Also runs at
+     * start-up: on Cloud Run the server sleeps when idle, so the nightly run is often skipped.
+     */
     @Scheduled(cron = "0 30 3 * * *")
+    @EventListener(ApplicationReadyEvent.class)
     public void forgetOldResponses() {
         tx.executeWithoutResult(s -> store.forgetResponsesBefore(clock.instant().minus(Duration.ofDays(7))));
     }

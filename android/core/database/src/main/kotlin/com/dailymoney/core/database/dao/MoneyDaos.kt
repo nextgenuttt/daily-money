@@ -11,6 +11,7 @@ import com.dailymoney.core.database.entity.AccountWithBalance
 import com.dailymoney.core.database.entity.BudgetEntity
 import com.dailymoney.core.database.entity.CategoryEntity
 import com.dailymoney.core.database.entity.CategoryRuleEntity
+import com.dailymoney.core.database.entity.PaymentSuggestionEntity
 import com.dailymoney.core.database.entity.TransactionEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -153,4 +154,30 @@ interface BudgetDao {
 
     @Query("UPDATE budgets SET deletedAt = :now, updatedAt = :now WHERE categoryId = :categoryId AND deletedAt IS NULL")
     suspend fun softDeleteForCategory(categoryId: String, now: Long)
+}
+
+@Dao
+interface PaymentSuggestionDao {
+
+    @Query("SELECT * FROM payment_suggestions WHERE status = 'NEW' ORDER BY receivedAt DESC")
+    fun observePending(): Flow<List<PaymentSuggestionEntity>>
+
+    @Query("SELECT COUNT(*) FROM payment_suggestions WHERE status = 'NEW'")
+    fun observePendingCount(): Flow<Int>
+
+    @Query("SELECT * FROM payment_suggestions WHERE id = :id")
+    suspend fun get(id: String): PaymentSuggestionEntity?
+
+    /** Row ids, -1 for messages already seen (added or dismissed ones stay dismissed). */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(rows: List<PaymentSuggestionEntity>): List<Long>
+
+    @Query("UPDATE payment_suggestions SET status = :status WHERE id = :id")
+    suspend fun setStatus(id: String, status: String)
+
+    @Query("UPDATE payment_suggestions SET status = 'DISMISSED' WHERE status = 'NEW'")
+    suspend fun dismissAll()
+
+    @Query("DELETE FROM payment_suggestions WHERE status = 'NEW'")
+    suspend fun deletePending()
 }

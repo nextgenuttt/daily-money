@@ -7,6 +7,8 @@ import com.dailymoney.core.network.model.ReadNotificationsDto
 import com.dailymoney.core.network.model.ThreadDto
 import com.dailymoney.core.network.model.SettlementDto
 import com.dailymoney.core.network.model.SyncPullDto
+import com.dailymoney.core.network.model.PhoneRequestDto
+import com.dailymoney.core.network.model.ReminderRequestDto
 import com.dailymoney.core.network.model.UpiRequestDto
 import com.dailymoney.core.network.model.SyncPushRequestDto
 import com.dailymoney.core.network.model.SyncPushResponseDto
@@ -38,6 +40,12 @@ interface SyncApi {
 
     @PUT("api/v1/me/upi")
     suspend fun setUpiId(@Body body: UpiRequestDto): Response<Unit>
+
+    @PUT("api/v1/me/phone")
+    suspend fun setPhone(@Body body: PhoneRequestDto): Response<Unit>
+
+    @POST("api/v1/organizations/{orgId}/payment-reminders")
+    suspend fun remind(@Path("orgId") orgId: String, @Body body: ReminderRequestDto): Response<Unit>
 
     @PUT("api/v1/notifications/read")
     suspend fun readNotifications(@Body body: ReadNotificationsDto): Response<Unit>
